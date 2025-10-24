@@ -31,12 +31,6 @@
 
 #include "evdev-tablet.h"
 
-#ifdef HAVE_LIBWACOM
-#include <libwacom/libwacom.h>
-#else
-typedef void *WacomStylus;
-#endif
-
 enum notify {
 	DONT_NOTIFY,
 	DO_NOTIFY,
@@ -1401,14 +1395,20 @@ tablet_new_tool(struct tablet_dispatch *tablet,
 	struct libinput_tablet_tool *tool = zalloc(sizeof *tool);
 	const WacomStylus *s = NULL;
 #ifdef HAVE_LIBWACOM
-	WacomDeviceDatabase *db;
+	WacomDevice *device = tablet->libwacom_device;
 
-	db = tablet_libinput_context(tablet)->libwacom.db;
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-	if (db)
-		s = libwacom_stylus_get_for_id(db, tool_id);
-#pragma GCC diagnostic pop
+	if (device) {
+		int nstyli;
+		const WacomStylus **styli = libwacom_get_styli(device, &nstyli);
+
+		for (int i = 0; i < nstyli; i++) {
+			const WacomStylus *stylus = styli[i];
+			if (libwacom_stylus_get_id(stylus) == (int)tool_id) {
+				s = stylus;
+				break;
+			}
+		}
+	}
 #endif
 
 	*tool = (struct libinput_tablet_tool){
@@ -2451,6 +2451,11 @@ tablet_destroy(struct evdev_dispatch *dispatch)
 		libinput_tablet_tool_unref(tool);
 	}
 
+#ifdef HAVE_LIBWACOM
+	if (tablet->libwacom_device)
+		libwacom_destroy(tablet->libwacom_device);
+#endif
+
 	libinput_libwacom_unref(li);
 
 	free(tablet);
@@ -2939,12 +2944,12 @@ static int
 tablet_init(struct tablet_dispatch *tablet, struct evdev_device *device)
 {
 	static unsigned int tablet_ids = 0;
-	struct libinput *li = evdev_libinput_context(device);
 	struct libevdev *evdev = device->evdev;
 	enum libinput_tablet_tool_axis axis;
 	int rc = -1;
 	WacomDevice *wacom = NULL;
 #ifdef HAVE_LIBWACOM
+	struct libinput *li = evdev_libinput_context(device);
 	WacomDeviceDatabase *db = libinput_libwacom_ref(li);
 	if (db) {
 		char event_path[64];
@@ -2968,6 +2973,7 @@ tablet_init(struct tablet_dispatch *tablet, struct evdev_device *device)
 				evdev_device_get_id_vendor(device),
 				evdev_device_get_id_product(device));
 		}
+		tablet->libwacom_device = wacom;
 	}
 #endif
 
@@ -3020,8 +3026,6 @@ tablet_init(struct tablet_dispatch *tablet, struct evdev_device *device)
 	rc = 0;
 out:
 #ifdef HAVE_LIBWACOM
-	if (wacom)
-		libwacom_destroy(wacom);
 	if (db)
 		libinput_libwacom_unref(li);
 #endif
