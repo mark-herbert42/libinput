@@ -3225,13 +3225,17 @@ START_TEST(touchpad_4fg_tap)
 {
 	struct litest_device *dev = litest_current_device();
 	struct libinput *li = dev->libinput;
+	bool with_hold = litest_test_param_get_bool(test_env->params, "with-hold");
 	int i;
 
 	if (litest_slot_count(dev) <= 4)
 		return LITEST_NOT_APPLICABLE;
 
 	litest_enable_tap(dev->libinput_device);
-	litest_disable_hold_gestures(dev->libinput_device);
+	if (with_hold)
+		litest_enable_hold_gestures(dev->libinput_device);
+	else
+		litest_disable_hold_gestures(dev->libinput_device);
 
 	for (i = 0; i < 4; i++) {
 		litest_drain_events(li);
@@ -3247,46 +3251,9 @@ START_TEST(touchpad_4fg_tap)
 		litest_touch_up(dev, (i + 0) % 4);
 
 		litest_dispatch(li);
-		litest_assert_empty_queue(li);
-		litest_timeout_tap(li);
-		litest_assert_empty_queue(li);
+		litest_assert_gesture_event(li, LIBINPUT_EVENT_GESTURE_TAP_BEGIN, 4);
+		litest_assert_gesture_event(li, LIBINPUT_EVENT_GESTURE_TAP_END, 4);
 	}
-}
-END_TEST
-
-START_TEST(touchpad_4fg_tap_quickrelease)
-{
-	struct litest_device *dev = litest_current_device();
-	struct libinput *li = dev->libinput;
-
-	if (litest_slot_count(dev) <= 4)
-		return LITEST_NOT_APPLICABLE;
-
-	litest_enable_tap(dev->libinput_device);
-	litest_disable_hold_gestures(dev->libinput_device);
-	litest_drain_events(li);
-
-	litest_touch_down(dev, 0, 50, 50);
-	litest_touch_down(dev, 1, 70, 50);
-	litest_touch_down(dev, 2, 80, 50);
-	litest_touch_down(dev, 3, 90, 50);
-
-	litest_event(dev, EV_ABS, ABS_MT_SLOT, 0);
-	litest_event(dev, EV_ABS, ABS_MT_TRACKING_ID, -1);
-	litest_event(dev, EV_ABS, ABS_MT_SLOT, 1);
-	litest_event(dev, EV_ABS, ABS_MT_TRACKING_ID, -1);
-	litest_event(dev, EV_ABS, ABS_MT_SLOT, 2);
-	litest_event(dev, EV_ABS, ABS_MT_TRACKING_ID, -1);
-	litest_event(dev, EV_ABS, ABS_MT_SLOT, 3);
-	litest_event(dev, EV_ABS, ABS_MT_TRACKING_ID, -1);
-	litest_event(dev, EV_KEY, BTN_TOOL_QUADTAP, 0);
-	litest_event(dev, EV_KEY, BTN_TOUCH, 0);
-	litest_event(dev, EV_SYN, SYN_REPORT, 0);
-
-	litest_dispatch(li);
-	litest_assert_empty_queue(li);
-	litest_timeout_tap(li);
-	litest_assert_empty_queue(li);
 }
 END_TEST
 
@@ -4825,8 +4792,7 @@ START_TEST(touchpad_tap_palm_on_touch_4)
 	litest_drain_events(li);
 
 	/* 4fg tap with one finger detected as palm, that finger is lifted,
-	   other two fingers lifted cause nothing because we terminate
-	   tapping as soon as 4 fingers are down */
+	   then put down again as normal finger -> 3fg tap */
 	litest_touch_down(dev, this, 50, 50);
 	litest_touch_down(dev, (this + 1) % 4, 60, 50);
 	litest_touch_down(dev, (this + 2) % 4, 70, 50);
@@ -4839,6 +4805,11 @@ START_TEST(touchpad_tap_palm_on_touch_4)
 	litest_touch_up(dev, (this + 1) % 4);
 	litest_touch_up(dev, (this + 2) % 4);
 	litest_touch_up(dev, (this + 3) % 4);
+
+	litest_dispatch(li);
+	litest_assert_button_event(li, BTN_MIDDLE, LIBINPUT_BUTTON_STATE_PRESSED);
+	litest_timeout_tap(li);
+	litest_assert_button_event(li, BTN_MIDDLE, LIBINPUT_BUTTON_STATE_RELEASED);
 
 	litest_assert_empty_queue(li);
 }
@@ -5420,8 +5391,9 @@ TEST_COLLECTION(touchpad_tap)
 	litest_add_for_device(touchpad_3fg_tap_slot_release_btntool, LITEST_SYNAPTICS_TOPBUTTONPAD);
 	litest_add(touchpad_3fg_tap_after_scroll, LITEST_TOUCHPAD, LITEST_SINGLE_TOUCH);
 
-	litest_add(touchpad_4fg_tap, LITEST_TOUCHPAD, LITEST_SINGLE_TOUCH|LITEST_SEMI_MT);
-	litest_add(touchpad_4fg_tap_quickrelease, LITEST_TOUCHPAD, LITEST_SINGLE_TOUCH|LITEST_SEMI_MT);
+	litest_with_parameters(params, "with-hold", 'b') {
+		litest_add_parametrized(touchpad_4fg_tap, LITEST_TOUCHPAD, LITEST_SINGLE_TOUCH|LITEST_SEMI_MT, params);
+	}
 	litest_add(touchpad_5fg_tap, LITEST_TOUCHPAD, LITEST_SINGLE_TOUCH|LITEST_SEMI_MT);
 	litest_add(touchpad_5fg_tap_quickrelease, LITEST_TOUCHPAD, LITEST_SINGLE_TOUCH|LITEST_SEMI_MT);
 

@@ -1037,6 +1037,22 @@ enum libinput_event_type {
 	LIBINPUT_EVENT_GESTURE_HOLD_END,
 
 	/**
+	 * A tap gesture signals a number of fingers put down and released in
+	 * the same position within a given timeout.
+	 *
+	 * For historical reasons, taps for one, two and three fingers are
+	 * sent as button events, see libinput_device_config_tap_set_button_map()
+	 * This gesture is currently only sent for a four-finger tap but may
+	 * be sent for other taps in the future.
+	 *
+	 * See libinput_device_config_tap_set_enabled() for details.
+	 *
+	 * @since 1.31
+	 */
+	LIBINPUT_EVENT_GESTURE_TAP_BEGIN,
+	LIBINPUT_EVENT_GESTURE_TAP_END,
+
+	/**
 	 * @since 1.7
 	 */
 	LIBINPUT_EVENT_SWITCH_TOGGLE = 900,
