@@ -42,7 +42,6 @@
 #define DEFAULT_TRACKPOINT_EVENT_TIMEOUT usec_from_millis(40)
 #define DEFAULT_KEYBOARD_ACTIVITY_TIMEOUT_1 usec_from_millis(200)
 #define DEFAULT_KEYBOARD_ACTIVITY_TIMEOUT_2 usec_from_millis(500)
-#define FAKE_FINGER_OVERFLOW bit(7)
 #define THUMB_IGNORE_SPEED_THRESHOLD 20 /* mm/s */
 
 #define MOUSE_HAS_SENT_EVENTS bit(1)
@@ -261,7 +260,7 @@ tp_get_touch(struct tp_dispatch *tp, unsigned int slot)
 static inline unsigned int
 tp_fake_finger_count(struct tp_dispatch *tp)
 {
-	unsigned int fake_touches = tp->fake_touches & ~(FAKE_FINGER_OVERFLOW | 0x1);
+	unsigned int fake_touches = tp->fake_touches & ~0x1;
 
 	/* Only one of BTN_TOOL_DOUBLETAP/TRIPLETAP/... may be set at any
 	 * time */
@@ -269,9 +268,6 @@ tp_fake_finger_count(struct tp_dispatch *tp)
 		evdev_log_bug_kernel(tp->device,
 				     "Invalid fake finger state %#x\n",
 				     tp->fake_touches);
-
-	if (tp->fake_touches & FAKE_FINGER_OVERFLOW)
-		return FAKE_FINGER_OVERFLOW;
 
 	/* don't count BTN_TOUCH */
 	return ffs(tp->fake_touches >> 1);
@@ -290,33 +286,29 @@ tp_fake_finger_set(struct tp_dispatch *tp, evdev_usage_t usage, bool is_press)
 
 	switch (evdev_usage_enum(usage)) {
 	case EVDEV_BTN_TOUCH:
-		if (!is_press)
-			tp->fake_touches &= ~FAKE_FINGER_OVERFLOW;
 		shift = 0;
 		break;
 	case EVDEV_BTN_TOOL_FINGER:
 		shift = 1;
 		break;
 	case EVDEV_BTN_TOOL_DOUBLETAP:
-	case EVDEV_BTN_TOOL_TRIPLETAP:
-	case EVDEV_BTN_TOOL_QUADTAP:
-		shift = evdev_usage_enum(usage) - EVDEV_BTN_TOOL_DOUBLETAP + 2;
+		shift = 2;
 		break;
-	/* when QUINTTAP is released we're either switching to 6 fingers
-	   (flag stays in place until BTN_TOUCH is released) or
-	   one of DOUBLE/TRIPLE/QUADTAP (will clear the flag on press) */
+	case EVDEV_BTN_TOOL_TRIPLETAP:
+		shift = 3;
+		break;
+	case EVDEV_BTN_TOOL_QUADTAP:
+		shift = 4;
+		break;
 	case EVDEV_BTN_TOOL_QUINTTAP:
-		if (is_press)
-			tp->fake_touches |= FAKE_FINGER_OVERFLOW;
-		return;
+		shift = 5;
+		break;
 	default:
 		return;
 	}
 
 	if (is_press) {
-		tp->fake_touches &= ~FAKE_FINGER_OVERFLOW;
 		tp->fake_touches |= bit(shift);
-
 	} else {
 		tp->fake_touches &= ~bit(shift);
 	}
@@ -629,9 +621,6 @@ tp_process_fake_touches(struct tp_dispatch *tp, usec_t time)
 	unsigned int i, start;
 
 	nfake_touches = tp_fake_finger_count(tp);
-	if (nfake_touches == FAKE_FINGER_OVERFLOW)
-		return;
-
 	if (tp->device->model_flags & EVDEV_MODEL_SYNAPTICS_SERIAL_TOUCHPAD)
 		tp_restore_synaptics_touches(tp, time);
 
@@ -1144,9 +1133,6 @@ tp_unhover_pressure(struct tp_dispatch *tp, usec_t time)
 	unsigned int real_fingers_down = 0;
 
 	nfake_touches = tp_fake_finger_count(tp);
-	if (nfake_touches == FAKE_FINGER_OVERFLOW)
-		nfake_touches = 0;
-
 	for (i = 0; i < (int)tp->num_slots; i++) {
 		t = tp_get_touch(tp, i);
 
@@ -1270,9 +1256,6 @@ tp_unhover_fake_touches(struct tp_dispatch *tp, usec_t time)
 		return;
 
 	nfake_touches = tp_fake_finger_count(tp);
-	if (nfake_touches == FAKE_FINGER_OVERFLOW)
-		return;
-
 	if (tp->nfingers_down == nfake_touches &&
 	    ((tp->nfingers_down == 0 && !tp_fake_finger_is_touching(tp)) ||
 	     (tp->nfingers_down > 0 && tp_fake_finger_is_touching(tp))))
