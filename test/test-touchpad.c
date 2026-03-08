@@ -5459,6 +5459,75 @@ START_TEST(touchpad_thumb_no_doublethumb)
 }
 END_TEST
 
+START_TEST(touchpad_thumb_no_double_revive)
+{
+	struct litest_device *dev = litest_current_device();
+	struct libinput *li = dev->libinput;
+
+	if (!has_thumb_detect(dev))
+		return LITEST_NOT_APPLICABLE;
+
+	litest_disable_tap(dev->libinput_device);
+	litest_disable_hold_gestures(dev->libinput_device);
+
+	if (litest_has_clickfinger(dev))
+		litest_enable_clickfinger(dev);
+
+	litest_drain_events(li);
+
+	/* 1. Thumb rests in thumb area, starts as JAILED */
+	litest_touch_down(dev, 0, 50, 99);
+	litest_touch_move_to(dev, 0, 50, 99, 51, 99, 10);
+	litest_assert_empty_queue(li);
+
+	/* 2. Finger touches far from thumb, makes a small movement
+	 * Thumb becomes SUPPRESSED
+	 */
+	msleep(200);
+	litest_dispatch(li);
+	litest_touch_down(dev, 1, 50, 0);
+	litest_dispatch(li);
+	litest_touch_move_to(dev, 1, 50, 0, 51, 1, 10);
+	litest_dispatch(li);
+	litest_drain_events(li);
+
+	/* 3. Lift the finger. Thumb is still on TP
+	 */
+	litest_touch_up(dev, 1);
+	litest_dispatch(li);
+	msleep(200);
+
+	/* 4. Move the thumb significantly so it becomes REVIVED. We should
+	 *    now see pointer motion events.
+	 */
+	litest_touch_move_to(dev, 0, 51, 99, 80, 70, 20);
+	litest_assert_only_typed_events(li, LIBINPUT_EVENT_POINTER_MOTION);
+
+	/* 5. A second finger touches & moves far away again.
+	 * Thumb should become DEAD.
+	 */
+	msleep(200);
+	litest_dispatch(li);
+	litest_touch_down(dev, 1, 50, 0);
+	litest_dispatch(li);
+	litest_touch_move_to(dev, 1, 50, 0, 80, 1, 8);
+	litest_dispatch(li);
+	litest_drain_events(li);
+
+	/* 6. Lift the second finger */
+	litest_touch_up(dev, 1);
+	litest_drain_events(li);
+
+	/* 7. Move the thumb again. It must now be DEAD!
+	 * Should not show any motion
+	 */
+	litest_touch_move_to(dev, 0, 80, 70, 50, 30, 30);
+	litest_assert_empty_queue(li);
+
+	litest_touch_up(dev, 0);
+}
+END_TEST
+
 START_TEST(touchpad_tool_tripletap_touch_count)
 {
 	struct litest_device *dev = litest_current_device();
@@ -7169,6 +7238,7 @@ TEST_COLLECTION(touchpad)
 	litest_add(touchpad_thumb_area_clickfinger, LITEST_CLICKPAD, LITEST_ANY);
 	litest_add(touchpad_thumb_area_btnarea, LITEST_CLICKPAD, LITEST_ANY);
 	litest_add(touchpad_thumb_no_doublethumb, LITEST_CLICKPAD, LITEST_ANY);
+	litest_add(touchpad_thumb_no_double_revive, LITEST_CLICKPAD, LITEST_SINGLE_TOUCH|LITEST_SEMI_MT);
 
 	litest_add_for_device(touchpad_tool_tripletap_touch_count, LITEST_SYNAPTICS_TOPBUTTONPAD);
 	litest_add_for_device(touchpad_tool_tripletap_touch_count_late, LITEST_SYNAPTICS_TOPBUTTONPAD);
