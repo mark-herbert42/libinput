@@ -5528,6 +5528,80 @@ START_TEST(touchpad_thumb_no_double_revive)
 }
 END_TEST
 
+START_TEST(touchpad_thumb_no_revive_after_ghost_touch)
+{
+	struct litest_device *dev = litest_current_device();
+	struct libinput *li = dev->libinput;
+
+	if (!has_thumb_detect(dev))
+		return LITEST_NOT_APPLICABLE;
+
+	litest_disable_tap(dev->libinput_device);
+	litest_disable_hold_gestures(dev->libinput_device);
+
+	if (litest_has_clickfinger(dev))
+		litest_enable_clickfinger(dev);
+
+	litest_drain_events(li);
+
+	/* 1. Thumb rests in thumb area at bottom center */
+	litest_touch_down(dev, 0, 45, 97);
+	litest_touch_move_to(dev, 0, 45, 97, 45, 97, 10);
+	litest_assert_empty_queue(li);
+
+	/* 2. Finger touches far above thumb and scrolls up */
+	msleep(200);
+	litest_dispatch(li);
+	litest_touch_down(dev, 1, 46, 41);
+	litest_dispatch(li);
+	litest_touch_move_to(dev, 1, 46, 41, 49, 14, 15);
+	litest_dispatch(li);
+	litest_drain_events(li);
+
+	/* 3. Lift the scroll finger */
+	litest_touch_up(dev, 1);
+	litest_dispatch(li);
+	msleep(340);
+
+	/* 4. Move the thumb significantly — it should become REVIVED */
+	litest_touch_move_to(dev, 0, 45, 97, 50, 83, 20);
+	litest_assert_only_typed_events(li, LIBINPUT_EVENT_POINTER_MOTION);
+
+	/* 5. Ghost touch: a single-frame phantom contact very close to
+	 *    the thumb, as seen in real hardware recording. The ghost
+	 *    appears while the thumb is actively moving and disappears
+	 *    within one frame.
+	 */
+	litest_touch_down(dev, 1, 52, 87);
+	litest_dispatch(li);
+	litest_touch_up(dev, 1);
+	litest_dispatch(li);
+	litest_drain_events(li);
+
+	/* 6. Real second finger arrives and scrolls */
+	msleep(234);
+	litest_dispatch(li);
+	litest_touch_down(dev, 1, 53, 44);
+	litest_dispatch(li);
+	litest_touch_move_to(dev, 1, 53, 44, 51, 11, 15);
+	litest_dispatch(li);
+	litest_drain_events(li);
+
+	/* 7. Lift the real second finger */
+	litest_touch_up(dev, 1);
+	litest_drain_events(li);
+
+	/* 8. Move the thumb again. After the ghost touch triggered a
+	 *    spurious state reset and a real second finger followed,
+	 *    the thumb must be DEAD and produce no motion.
+	 */
+	litest_touch_move_to(dev, 0, 50, 83, 60, 55, 30);
+	litest_assert_empty_queue(li);
+
+	litest_touch_up(dev, 0);
+}
+END_TEST
+
 START_TEST(touchpad_tool_tripletap_touch_count)
 {
 	struct litest_device *dev = litest_current_device();
@@ -7239,6 +7313,7 @@ TEST_COLLECTION(touchpad)
 	litest_add(touchpad_thumb_area_btnarea, LITEST_CLICKPAD, LITEST_ANY);
 	litest_add(touchpad_thumb_no_doublethumb, LITEST_CLICKPAD, LITEST_ANY);
 	litest_add(touchpad_thumb_no_double_revive, LITEST_CLICKPAD, LITEST_SINGLE_TOUCH|LITEST_SEMI_MT);
+	litest_add(touchpad_thumb_no_revive_after_ghost_touch, LITEST_CLICKPAD, LITEST_SINGLE_TOUCH|LITEST_SEMI_MT);
 
 	litest_add_for_device(touchpad_tool_tripletap_touch_count, LITEST_SYNAPTICS_TOPBUTTONPAD);
 	litest_add_for_device(touchpad_tool_tripletap_touch_count_late, LITEST_SYNAPTICS_TOPBUTTONPAD);
