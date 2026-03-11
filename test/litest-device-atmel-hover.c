@@ -132,4 +132,8 @@ TEST_DEVICE(LITEST_ATMEL_HOVER,
 	    .name = "Atmel maXTouch Touchpad",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

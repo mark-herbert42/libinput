@@ -195,4 +195,8 @@ TEST_DEVICE(LITEST_MOUSE_ROCCAT,
 	    .name = "ROCCAT ROCCAT Kone XTD",
 	    .id = &input_id,
 	    .absinfo = absinfo,
-	    .events = events, )
+	    .events = events,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

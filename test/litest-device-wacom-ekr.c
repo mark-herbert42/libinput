@@ -114,5 +114,6 @@ TEST_DEVICE(LITEST_WACOM_EKR,
 	    .absinfo = absinfo,
 	    .udev_properties = {
 		    { "ID_INPUT_TABLET_PAD", "1" },
+		    { "ID_INTEGRATION", "external" },
 		    { NULL },
 	    }, )

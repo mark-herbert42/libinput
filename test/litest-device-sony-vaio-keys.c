@@ -94,4 +94,8 @@ TEST_DEVICE(LITEST_SONY_VAIO_KEYS,
 	    .name = "Sony Vaio Keys",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = NULL, )
+	    .absinfo = NULL,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

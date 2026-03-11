@@ -119,5 +119,6 @@ TEST_DEVICE(LITEST_WACOM_INTUOS5_FINGER,
 		    { "ID_INPUT_TABLET", "1" },
 		    { "ID_INPUT_TOUCHPAD", "1" },
 		    { "LIBINPUT_DEVICE_GROUP", "wacom-i5-group" },
+		    { "ID_INTEGRATION", "external" },
 		    { NULL },
 	    }, )

@@ -53,4 +53,8 @@ TEST_DEVICE(LITEST_MOUSE_FORMAT_STRING,
 	    .name = "Evil %s %d %x Mouse %p %",
 	    .id = &input_id,
 	    .absinfo = NULL,
-	    .events = events, )
+	    .events = events,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

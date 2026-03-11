@@ -88,4 +88,8 @@ TEST_DEVICE(LITEST_KEYBOARD_LOGITECH_MEDIA_KEYBOARD_ELITE,
 	    .name = "Logitech Logitech USB Keyboard Consumer Control",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = NULL, )
+	    .absinfo = NULL,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

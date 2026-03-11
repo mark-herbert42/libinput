@@ -78,5 +78,6 @@ TEST_DEVICE(LITEST_HUION_Q620M_DIAL,
 	    .absinfo = absinfo,
 	    .udev_properties = {
 		    { "ID_INPUT_TABLET_PAD", "1" },
+		    { "ID_INTEGRATION", "external" },
 		    { NULL },
 	    }, )

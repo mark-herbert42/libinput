@@ -56,4 +56,8 @@ TEST_DEVICE(LITEST_MS_NANO_TRANSCEIVER_MOUSE,
 	    .name = "Microsoft Microsoft® Nano Transceiver v2.0",
 	    .id = &input_id,
 	    .absinfo = NULL,
-	    .events = events, )
+	    .events = events,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

@@ -215,4 +215,8 @@ TEST_DEVICE(LITEST_KEYBOARD_BLADE_STEALTH_VIDEOSWITCH,
 
 	    .name = "Razer Razer Blade Stealth",
 	    .id = &input_id,
-	    .events = events, )
+	    .events = events,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

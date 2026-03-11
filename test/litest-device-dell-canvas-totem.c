@@ -127,5 +127,6 @@ TEST_DEVICE(LITEST_DELL_CANVAS_TOTEM,
 	    .absinfo = absinfo,
 	    .udev_properties = {
 		    { "LIBINPUT_DEVICE_GROUP", "dell-canvas-totem-group" },
+		    { "ID_INTEGRATION", "external" },
 		    { NULL },
 	    }, )

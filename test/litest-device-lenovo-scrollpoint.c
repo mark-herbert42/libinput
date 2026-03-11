@@ -57,4 +57,8 @@ TEST_DEVICE(LITEST_LENOVO_SCROLLPOINT,
 	    .name = "HID 04b3:3109",
 	    .id = &input_id,
 	    .absinfo = NULL,
-	    .events = events, )
+	    .events = events,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

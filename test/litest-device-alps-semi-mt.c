@@ -113,4 +113,8 @@ TEST_DEVICE(LITEST_ALPS_SEMI_MT,
 	    .name = "AlpsPS/2 ALPS GlidePoint",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

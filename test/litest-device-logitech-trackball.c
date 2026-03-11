@@ -52,4 +52,8 @@ TEST_DEVICE(LITEST_LOGITECH_TRACKBALL,
 	    .name = "Logitech USB Trackball",
 	    .id = &input_id,
 	    .absinfo = NULL,
-	    .events = events, )
+	    .events = events,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

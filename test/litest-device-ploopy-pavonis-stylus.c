@@ -127,4 +127,8 @@ TEST_DEVICE(LITEST_PLOOPY_PAVONIS_STYLUS,
 	    .name = "Ploopy Corporation Ploopy Pavonis Trackpad Stylus",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

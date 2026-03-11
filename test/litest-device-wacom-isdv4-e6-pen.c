@@ -103,4 +103,8 @@ TEST_DEVICE(LITEST_WACOM_ISDV4_E6_PEN,
 	    .name = "Wacom ISDv4 E6 Pen",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

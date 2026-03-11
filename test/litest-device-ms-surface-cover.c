@@ -382,4 +382,8 @@ TEST_DEVICE(LITEST_MS_SURFACE_COVER,
 	    .name = "Microsoft Surface Type Cover",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

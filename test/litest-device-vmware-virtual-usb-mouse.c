@@ -113,4 +113,8 @@ TEST_DEVICE(LITEST_VMWARE_VIRTMOUSE,
 	    .name = "VMware VMware Virtual USB Mouse",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

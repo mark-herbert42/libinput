@@ -103,4 +103,8 @@ TEST_DEVICE(LITEST_XEN_VIRTUAL_POINTER,
 	    .name = "Xen Virtual Pointer",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

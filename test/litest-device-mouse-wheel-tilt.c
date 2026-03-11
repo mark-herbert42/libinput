@@ -56,5 +56,6 @@ TEST_DEVICE(LITEST_MOUSE_WHEEL_TILT,
 	    .udev_properties = {
 		    { "MOUSE_WHEEL_TILT_HORIZONTAL", "1" },
 		    { "MOUSE_WHEEL_TILT_VERTICAL", "1" },
+		    { "ID_INTEGRATION", "external" },
 		    { NULL },
 	    })

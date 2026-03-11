@@ -87,4 +87,8 @@ TEST_DEVICE(LITEST_TOUCHSCREEN_MT_TOOL_TYPE,
 	    .name = "touchscreen-mt-tool-type",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

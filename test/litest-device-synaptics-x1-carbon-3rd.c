@@ -122,4 +122,8 @@ TEST_DEVICE(LITEST_SYNAPTICS_TRACKPOINT_BUTTONS,
 	    .id = &input_id,
 	    .events = events,
 	    .absinfo = absinfo,
-	    .quirk_file = quirk_file, )
+	    .quirk_file = quirk_file,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

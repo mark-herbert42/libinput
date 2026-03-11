@@ -113,4 +113,8 @@ TEST_DEVICE(LITEST_WACOM_BAMBOO_16FG_PEN,
 	    .name = "Wacom Bamboo 16FG 4x5 Pen",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

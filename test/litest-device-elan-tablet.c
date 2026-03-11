@@ -146,4 +146,8 @@ TEST_DEVICE(LITEST_ELAN_TABLET,
 	    .name = "ELAN2514:00 04F3:23B9",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

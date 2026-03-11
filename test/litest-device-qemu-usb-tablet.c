@@ -98,4 +98,8 @@ TEST_DEVICE(LITEST_QEMU_TABLET,
 	    .name = "QEMU 0.12.1 QEMU USB Tablet",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

@@ -54,5 +54,6 @@ TEST_DEVICE(LITEST_IGNORED_MOUSE,
 	    .events = events,
 	    .udev_properties = {
 		    { "LIBINPUT_IGNORE_DEVICE", "1" },
+		    { "ID_INTEGRATION", "external" },
 		    { NULL },
 	    }, )

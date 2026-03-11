@@ -197,4 +197,8 @@ TEST_DEVICE(LITEST_ACER_HAWAII_KEYBOARD,
 	    .name = "Chicony ACER Hawaii Keyboard",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = NULL, )
+	    .absinfo = NULL,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

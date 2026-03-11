@@ -218,4 +218,8 @@ TEST_DEVICE(LITEST_ANKER_MOUSE_KBD,
 	    .name = "USB Laser Game Mouse",
 	    .id = &input_id,
 	    .absinfo = absinfo,
-	    .events = events, )
+	    .events = events,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

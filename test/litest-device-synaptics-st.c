@@ -99,4 +99,8 @@ TEST_DEVICE(LITEST_SYNAPTICS_TOUCHPAD,
 	    .name = "SynPS/2 Synaptics TouchPad",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

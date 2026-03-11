@@ -250,4 +250,8 @@ TEST_DEVICE(LITEST_KEYBOARD_QUIRKED,
 	    .id = &input_id,
 	    .events = events,
 	    .absinfo = NULL,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    },
 	    .quirk_file = quirk_file, )

@@ -6624,7 +6624,9 @@ enum libinput_config_scroll_button_lock_state {
  * If the state is
  * @ref LIBINPUT_CONFIG_SCROLL_BUTTON_LOCK_ENABLED, the button is considered
  * logically down after the first press and release sequence, and logically
- * up after the second press and release sequence.
+ * up after the second press and release sequence. If the button is held
+ * and used to scroll for longer than a short grace period, releasing the
+ * button does not engage the lock.
  *
  * @param device The device to configure
  * @param state The state to set the scroll button lock to

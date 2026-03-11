@@ -82,5 +82,6 @@ TEST_DEVICE(LITEST_THINKPAD_EXTRABUTTONS,
 	    .absinfo = NULL,
 	    .udev_properties = {
 		    { "ID_INPUT_SWITCH", "1" },
+		    { "ID_INTEGRATION", "internal" },
 		    { NULL },
 	    }, )

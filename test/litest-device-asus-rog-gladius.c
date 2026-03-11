@@ -323,4 +323,8 @@ TEST_DEVICE(LITEST_MOUSE_GLADIUS,
 	    .name = "ASUS ROG GLADIUS",
 	    .id = &input_id,
 	    .absinfo = absinfo,
-	    .events = events, )
+	    .events = events,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

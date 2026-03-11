@@ -45,7 +45,11 @@ TEST_DEVICE(LITEST_KEYBOARD_ALL_CODES,
 	    .name = NAME,
 	    .id = &input_id,
 	    .events = NULL,
-	    .absinfo = NULL, )
+	    .absinfo = NULL,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )
 
 static bool
 all_codes_create(struct litest_device *d)

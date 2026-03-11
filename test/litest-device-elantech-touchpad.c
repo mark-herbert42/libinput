@@ -109,4 +109,8 @@ TEST_DEVICE(LITEST_ELANTECH_TOUCHPAD,
 	    .name = "ETPS/2 Elantech Touchpad",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

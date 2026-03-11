@@ -150,4 +150,8 @@ TEST_DEVICE(LITEST_WACOM_CINTIQ_12WX_PEN,
 	    .name = "Wacom Cintiq 12WX",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

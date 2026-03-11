@@ -2238,6 +2238,146 @@ START_TEST(pointer_scroll_button_lock_doubleclick_nomove)
 }
 END_TEST
 
+START_TEST(pointer_scroll_button_lock_scroll_releases)
+{
+	struct litest_device *dev = litest_current_device();
+	struct libinput *li = dev->libinput;
+
+	litest_enable_scroll_button_lock(dev, BTN_LEFT);
+	litest_disable_middleemu(dev);
+	litest_drain_events(li);
+
+	/* Press, wait for buttonscroll timeout, scroll, wait past grace
+	   period, release. The lock should NOT engage. */
+	litest_button_click_debounced(dev, li, BTN_LEFT, true);
+	litest_timeout_buttonscroll(li);
+	litest_dispatch(li);
+
+	for (int i = 0; i < 10; i++) {
+		litest_event(dev, EV_REL, REL_X, 1);
+		litest_event(dev, EV_REL, REL_Y, 6);
+		litest_event(dev, EV_SYN, SYN_REPORT, 0);
+	}
+	litest_dispatch(li);
+	litest_assert_only_axis_events(li, LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS);
+
+	litest_timeout_scroll_button_lock_grace(li);
+
+	litest_button_click_debounced(dev, li, BTN_LEFT, false);
+	litest_dispatch(li);
+
+	/* Expect scroll stop, no lock */
+	litest_assert_scroll(li, LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS, 0, 0);
+
+	/* Subsequent motion should be pointer motion, not scroll */
+	for (int i = 0; i < 10; i++) {
+		litest_event(dev, EV_REL, REL_X, 1);
+		litest_event(dev, EV_REL, REL_Y, 6);
+		litest_event(dev, EV_SYN, SYN_REPORT, 0);
+	}
+	litest_assert_only_typed_events(li, LIBINPUT_EVENT_POINTER_MOTION);
+}
+END_TEST
+
+START_TEST(pointer_scroll_button_lock_scroll_within_grace)
+{
+	struct litest_device *dev = litest_current_device();
+	struct libinput *li = dev->libinput;
+
+	litest_enable_scroll_button_lock(dev, BTN_LEFT);
+	litest_disable_middleemu(dev);
+	litest_drain_events(li);
+
+	/* Press, wait for buttonscroll timeout, scroll briefly, release
+	   immediately (total < 500ms from press). The lock SHOULD engage
+	   since we're within the grace period. */
+	litest_button_click_debounced(dev, li, BTN_LEFT, true);
+	litest_timeout_buttonscroll(li);
+	litest_dispatch(li);
+
+	for (int i = 0; i < 3; i++) {
+		litest_event(dev, EV_REL, REL_X, 1);
+		litest_event(dev, EV_REL, REL_Y, 6);
+		litest_event(dev, EV_SYN, SYN_REPORT, 0);
+	}
+	litest_dispatch(li);
+
+	/* Release immediately (still within grace period) */
+	litest_button_click_debounced(dev, li, BTN_LEFT, false);
+	litest_dispatch(li);
+
+	/* Lock should be engaged: drain scroll events from the hold */
+	litest_assert_only_axis_events(li, LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS);
+
+	/* Motion while locked should produce scroll events */
+	for (int i = 0; i < 10; i++) {
+		litest_event(dev, EV_REL, REL_X, 1);
+		litest_event(dev, EV_REL, REL_Y, 6);
+		litest_event(dev, EV_SYN, SYN_REPORT, 0);
+	}
+	litest_dispatch(li);
+	litest_assert_only_axis_events(li, LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS);
+
+	/* Click again to unlock */
+	litest_button_click_debounced(dev, li, BTN_LEFT, true);
+	litest_button_click_debounced(dev, li, BTN_LEFT, false);
+	litest_dispatch(li);
+
+	litest_assert_scroll(li, LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS, 0, 0);
+
+	/* Back to normal motion */
+	for (int i = 0; i < 10; i++) {
+		litest_event(dev, EV_REL, REL_X, 1);
+		litest_event(dev, EV_REL, REL_Y, 6);
+		litest_event(dev, EV_SYN, SYN_REPORT, 0);
+	}
+	litest_assert_only_typed_events(li, LIBINPUT_EVENT_POINTER_MOTION);
+}
+END_TEST
+
+START_TEST(pointer_scroll_button_lock_hold_no_move_still_locks)
+{
+	struct litest_device *dev = litest_current_device();
+	struct libinput *li = dev->libinput;
+
+	litest_enable_scroll_button_lock(dev, BTN_LEFT);
+	litest_disable_middleemu(dev);
+	litest_drain_events(li);
+
+	/* Press, wait past 500ms, release without moving.
+	   button_scroll_state == READY (not SCROLLING), so lock
+	   engages as normal click. */
+	litest_button_click_debounced(dev, li, BTN_LEFT, true);
+	litest_timeout_buttonscroll(li);
+	litest_timeout_scroll_button_lock_grace(li);
+	litest_dispatch(li);
+
+	litest_button_click_debounced(dev, li, BTN_LEFT, false);
+	litest_dispatch(li);
+
+	/* Lock should be engaged (release was filtered).
+	   The scroll SM was in READY state, so it emits button press/release
+	   (since no scrolling occurred), but the lock SM filtered the release.
+	   Subsequent motion should produce scroll events. */
+	litest_assert_empty_queue(li);
+
+	for (int i = 0; i < 10; i++) {
+		litest_event(dev, EV_REL, REL_X, 1);
+		litest_event(dev, EV_REL, REL_Y, 6);
+		litest_event(dev, EV_SYN, SYN_REPORT, 0);
+	}
+	litest_dispatch(li);
+	litest_assert_only_axis_events(li, LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS);
+
+	/* Click to unlock */
+	litest_button_click_debounced(dev, li, BTN_LEFT, true);
+	litest_button_click_debounced(dev, li, BTN_LEFT, false);
+	litest_dispatch(li);
+
+	litest_assert_scroll(li, LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS, 0, 0);
+}
+END_TEST
+
 START_TEST(pointer_scroll_nowheel_defaults)
 {
 	struct litest_device *dev = litest_current_device();
@@ -3815,6 +3955,10 @@ TEST_COLLECTION(pointer)
 		litest_add_parametrized(pointer_scroll_button_lock_middlebutton, LITEST_RELATIVE|LITEST_BUTTON, LITEST_ANY, params);
 	}
 	litest_add(pointer_scroll_button_lock_doubleclick_nomove, LITEST_RELATIVE|LITEST_BUTTON, LITEST_ANY);
+
+	litest_add(pointer_scroll_button_lock_scroll_releases, LITEST_RELATIVE|LITEST_BUTTON, LITEST_ANY);
+	litest_add(pointer_scroll_button_lock_scroll_within_grace, LITEST_RELATIVE|LITEST_BUTTON, LITEST_ANY);
+	litest_add(pointer_scroll_button_lock_hold_no_move_still_locks, LITEST_RELATIVE|LITEST_BUTTON, LITEST_ANY);
 
 	litest_add(pointer_scroll_nowheel_defaults, LITEST_RELATIVE|LITEST_BUTTON, LITEST_WHEEL);
 	litest_add_for_device(pointer_scroll_defaults_logitech_marble , LITEST_LOGITECH_TRACKBALL);

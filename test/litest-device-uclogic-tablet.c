@@ -106,4 +106,8 @@ TEST_DEVICE(LITEST_UCLOGIC_TABLET,
 	    .name = "uclogic PenTablet Pen",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

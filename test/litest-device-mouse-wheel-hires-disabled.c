@@ -60,4 +60,8 @@ TEST_DEVICE(LITEST_MOUSE_WHEEL_HIRES_DISABLED,
 	    .id = &input_id,
 	    .absinfo = NULL,
 	    .events = events,
-	    .quirk_file = quirk_file, )
+	    .quirk_file = quirk_file,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

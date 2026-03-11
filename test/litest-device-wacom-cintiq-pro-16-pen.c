@@ -149,5 +149,6 @@ TEST_DEVICE(LITEST_WACOM_CINTIQ_PRO16_PEN,
 	    .absinfo = absinfo,
 	    .udev_properties = {
 		    { "LIBINPUT_DEVICE_GROUP", "wacom-pro16-group" },
+		    { "ID_INTEGRATION", "external" },
 		    { NULL },
 	    }, )

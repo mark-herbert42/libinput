@@ -75,5 +75,6 @@ TEST_DEVICE(LITEST_ABSINFO_OVERRIDE,
 		    { "EVDEV_ABS_01", "2:2000:200:20" },
 		    { "EVDEV_ABS_35", "3:3000:300:30" },
 		    { "EVDEV_ABS_36", "4:4000:400:40" },
+		    { "ID_INTEGRATION", "internal" },
 		    { NULL },
 	    }, )

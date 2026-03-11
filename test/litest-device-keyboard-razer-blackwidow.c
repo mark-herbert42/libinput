@@ -343,4 +343,8 @@ TEST_DEVICE(LITEST_KEYBOARD_BLACKWIDOW,
 	    .name = "Razer Razer BlackWidow 2013",
 	    .id = &input_id,
 	    .absinfo = absinfo,
-	    .events = events, )
+	    .events = events,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

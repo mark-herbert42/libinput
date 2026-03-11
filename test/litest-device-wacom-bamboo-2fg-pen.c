@@ -116,5 +116,6 @@ TEST_DEVICE(LITEST_WACOM_BAMBOO_2FG_PEN,
 	    .absinfo = absinfo,
 	    .udev_properties = {
 		    { "LIBINPUT_DEVICE_GROUP", "wacom-bamboo-2fg-group" },
+		    { "ID_INTEGRATION", "external" },
 		    { NULL },
 	    }, )

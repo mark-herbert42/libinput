@@ -99,4 +99,8 @@ TEST_DEVICE(LITEST_SYNAPTICS_PHANTOMCLICKS,
 	    .id = &input_id,
 	    .events = events,
 	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    },
 	    .quirk_file = quirk_file, )

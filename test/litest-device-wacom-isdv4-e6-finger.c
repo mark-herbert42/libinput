@@ -87,4 +87,8 @@ TEST_DEVICE(LITEST_WACOM_ISDV4_E6_FINGER,
 	    .name = "Wacom ISDv4 E6 Finger",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

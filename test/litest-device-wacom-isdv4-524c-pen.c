@@ -164,4 +164,8 @@ TEST_DEVICE(LITEST_WACOM_ISDV4_524C_PEN,
 	    .id = &input_id,
 	    .events = events,
 	    .absinfo = absinfo,
-	    .create = create, )
+	    .create = create,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

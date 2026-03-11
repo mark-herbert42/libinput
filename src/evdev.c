@@ -54,6 +54,7 @@
 
 #define DEFAULT_WHEEL_CLICK_ANGLE 15
 #define DEFAULT_BUTTON_SCROLL_TIMEOUT usec_from_millis(200)
+#define SCROLL_BUTTON_LOCK_GRACE_TIMEOUT usec_from_millis(500)
 
 enum evdev_device_udev_tags {
 	EVDEV_UDEV_TAG_NONE = 0,
@@ -228,6 +229,15 @@ evdev_button_scroll_button(struct evdev_device *device, usec_t time, int is_pres
 		break; /* handle event */
 	case BUTTONSCROLL_LOCK_FIRSTDOWN:
 		assert(!is_press);
+		if (device->scroll.button_scroll_state == BUTTONSCROLL_SCROLLING &&
+		    usec_cmp(usec_delta(time, device->scroll.button_down_time),
+			     SCROLL_BUTTON_LOCK_GRACE_TIMEOUT) >= 0) {
+			/* held + scrolled past grace period: temporary scroll,
+			 * no lock engaged */
+			device->scroll.lock_state = BUTTONSCROLL_LOCK_IDLE;
+			evdev_log_debug(device, "scroll lock: temp scroll done\n");
+			break; /* pass release through */
+		}
 		device->scroll.lock_state = BUTTONSCROLL_LOCK_FIRSTUP;
 		evdev_log_debug(device, "scroll lock: first up\n");
 		return; /* filter release event */
@@ -489,6 +499,7 @@ static void
 evdev_tag_trackpoint(struct evdev_device *device, struct udev_device *udev_device)
 {
 	char *prop;
+	const char *udev_prop;
 
 	if (!libevdev_has_property(device->evdev, INPUT_PROP_POINTING_STICK) &&
 	    !parse_udev_flag(device, udev_device, "ID_INPUT_POINTINGSTICK"))
@@ -496,10 +507,22 @@ evdev_tag_trackpoint(struct evdev_device *device, struct udev_device *udev_devic
 
 	device->tags |= EVDEV_TAG_TRACKPOINT;
 
+	udev_prop = udev_device_get_property_value(udev_device, "ID_INTEGRATION");
+	if (udev_prop) {
+		if (streq(udev_prop, "internal")) {
+			/* noop, this is the default anyway */
+		} else if (streq(udev_prop, "external"))
+			device->tags |= EVDEV_TAG_EXTERNAL_MOUSE;
+		else
+			evdev_log_info(device,
+				       "tagged with unknown value %s\n",
+				       udev_prop);
+	}
+
 	_unref_(quirks) *q = libinput_device_get_quirks(&device->base);
 	if (q && quirks_get_string(q, QUIRK_ATTR_TRACKPOINT_INTEGRATION, &prop)) {
 		if (streq(prop, "internal")) {
-			/* noop, this is the default anyway */
+			device->tags &= ~EVDEV_TAG_EXTERNAL_MOUSE;
 		} else if (streq(prop, "external")) {
 			device->tags |= EVDEV_TAG_EXTERNAL_MOUSE;
 			evdev_log_info(device, "is an external pointing stick\n");
@@ -527,6 +550,7 @@ static void
 evdev_tag_keyboard(struct evdev_device *device, struct udev_device *udev_device)
 {
 	char *prop;
+	const char *udev_prop;
 	int code;
 
 	if (!libevdev_has_event_type(device->evdev, EV_KEY))
@@ -535,6 +559,18 @@ evdev_tag_keyboard(struct evdev_device *device, struct udev_device *udev_device)
 	for (code = KEY_Q; code <= KEY_P; code++) {
 		if (!libevdev_has_event_code(device->evdev, EV_KEY, code))
 			return;
+	}
+
+	udev_prop = udev_device_get_property_value(udev_device, "ID_INTEGRATION");
+	if (udev_prop) {
+		if (streq(udev_prop, "internal"))
+			evdev_tag_keyboard_internal(device);
+		else if (streq(udev_prop, "external"))
+			evdev_tag_keyboard_external(device);
+		else
+			evdev_log_info(device,
+				       "tagged with unknown value %s\n",
+				       udev_prop);
 	}
 
 	_unref_(quirks) *q = libinput_device_get_quirks(&device->base);

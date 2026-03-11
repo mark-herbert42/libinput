@@ -202,4 +202,8 @@ TEST_DEVICE(LITEST_KEYBOARD,
 	    .name = "AT Translated Set 2 keyboard",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = NULL, )
+	    .absinfo = NULL,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

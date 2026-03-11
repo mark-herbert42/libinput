@@ -95,5 +95,6 @@ TEST_DEVICE(LITEST_WACOM_CINTIQ_13HDT_FINGER,
 	    .absinfo = absinfo,
 	    .udev_properties = {
 		    { "LIBINPUT_DEVICE_GROUP", "wacom-13hdt-group" },
+		    { "ID_INTEGRATION", "external" },
 		    { NULL },
 	    }, )

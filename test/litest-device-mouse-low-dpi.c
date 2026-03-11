@@ -57,5 +57,6 @@ TEST_DEVICE(LITEST_MOUSE_LOW_DPI,
 	    .events = events,
 	    .udev_properties = {
 		    { "MOUSE_DPI", "400@125" },
+		    { "ID_INTEGRATION", "external" },
 		    { NULL },
 	    }, )

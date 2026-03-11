@@ -58,4 +58,8 @@ TEST_DEVICE(LITEST_CYBORG_RAT,
 	    .name = "Saitek Cyborg R.A.T.5 Mouse",
 	    .id = &input_id,
 	    .absinfo = NULL,
-	    .events = events, )
+	    .events = events,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

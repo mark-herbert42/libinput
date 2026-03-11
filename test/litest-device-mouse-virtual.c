@@ -52,4 +52,8 @@ TEST_DEVICE(LITEST_MOUSE_VIRTUAL,
 	    .id = &input_id,
 	    .events = events,
 	    .absinfo = NULL,
-	    .quirk_file = quirk_file, )
+	    .quirk_file = quirk_file,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

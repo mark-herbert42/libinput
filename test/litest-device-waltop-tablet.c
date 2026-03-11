@@ -237,4 +237,8 @@ TEST_DEVICE(LITEST_WALTOP,
 	    .id = &input_id,
 	    .events = events,
 	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    },
 	    .quirk_file = quirk_file, )

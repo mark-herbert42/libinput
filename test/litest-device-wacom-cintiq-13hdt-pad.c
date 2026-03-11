@@ -105,5 +105,6 @@ TEST_DEVICE(LITEST_WACOM_CINTIQ_13HDT_PAD,
 	    .udev_properties = {
 		    { "ID_INPUT_TABLET_PAD", "1" },
 		    { "LIBINPUT_DEVICE_GROUP", "wacom-13hdt-group" },
+		    { "ID_INTEGRATION", "external" },
 		    { NULL },
 	    }, )

@@ -61,5 +61,6 @@ TEST_DEVICE(LITEST_GPIO_KEYS,
 	    .quirk_file = quirk_file,
 	    .udev_properties = {
 		    { "ID_INPUT_SWITCH", "1" },
+		    { "ID_INTEGRATION", "internal" },
 		    { NULL },
 	    })

@@ -2678,6 +2678,22 @@ evdev_tag_touchpad(struct evdev_device *device, struct udev_device *udev_device)
 	int bustype, vendor;
 	const char *prop;
 
+	prop = udev_device_get_property_value(udev_device, "ID_INTEGRATION");
+	if (prop) {
+		if (streq(prop, "internal")) {
+			evdev_tag_touchpad_internal(device);
+			return;
+		}
+
+		if (streq(prop, "external")) {
+			evdev_tag_touchpad_external(device);
+			return;
+		}
+
+		evdev_log_info(device, "tagged with unknown value %s\n", prop);
+	}
+
+	/* Fall back to ID_TOUCHPAD_INTEGRATION if ID_INTEGRATION is missing */
 	prop = udev_device_get_property_value(udev_device,
 					      "ID_INPUT_TOUCHPAD_INTEGRATION");
 	if (prop) {

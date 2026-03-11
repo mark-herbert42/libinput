@@ -93,4 +93,8 @@ TEST_DEVICE(LITEST_ACER_HAWAII_TOUCHPAD,
 	    .name = "Chicony ACER Hawaii Keyboard Touchpad",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

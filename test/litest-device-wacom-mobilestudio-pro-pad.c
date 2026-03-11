@@ -111,5 +111,6 @@ TEST_DEVICE(LITEST_WACOM_MOBILESTUDIO_PRO_16_PAD,
 	    .udev_properties = {
 		    { "ID_INPUT_TABLET", "1" },
 		    { "ID_INPUT_TABLET_PAD", "1" },
+		    { "ID_INTEGRATION", "external" },
 		    { NULL },
 	    }, )

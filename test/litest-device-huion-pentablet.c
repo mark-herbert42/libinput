@@ -108,4 +108,8 @@ TEST_DEVICE(LITEST_HUION_TABLET,
 	    .name = "HUION PenTablet Pen",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

@@ -52,5 +52,6 @@ TEST_DEVICE(LITEST_KEYPAD_SLIDE_SWITCH,
 
 	    .udev_properties = {
 		    { "ID_INPUT_SWITCH", "1" },
+		    { "ID_INTEGRATION", "internal" },
 		    { NULL },
 	    }, )

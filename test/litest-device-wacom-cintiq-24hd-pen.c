@@ -139,4 +139,8 @@ TEST_DEVICE(LITEST_WACOM_CINTIQ_24HD_PEN,
 	    .name = "Wacom Cintiq 24 HD Pen",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

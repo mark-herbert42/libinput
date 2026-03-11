@@ -55,4 +55,8 @@ TEST_DEVICE(LITEST_MOUSE_PS2,
 	    .name = "ImExPS/2 Generic Explorer Mouse",
 	    .id = &input_id,
 	    .absinfo = NULL,
-	    .events = events, )
+	    .events = events,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

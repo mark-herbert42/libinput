@@ -198,4 +198,8 @@ TEST_DEVICE(LITEST_GENERIC_USBCOMBO_KEYBOARD,
 	    .name = "Generic USB KeyTouch Combo",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = NULL, )
+	    .absinfo = NULL,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

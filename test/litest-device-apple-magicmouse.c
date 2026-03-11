@@ -100,5 +100,6 @@ TEST_DEVICE(LITEST_MAGICMOUSE,
 	     * re-writing those, so let's assume the default */
 	    .udev_properties = {
 		    { "MOUSE_DPI", "1000" },
+		    { "ID_INTEGRATION", "external" },
 		    { NULL },
 	    }, )

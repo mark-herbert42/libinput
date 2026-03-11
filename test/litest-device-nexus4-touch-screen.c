@@ -87,4 +87,8 @@ TEST_DEVICE(LITEST_NEXUS4_TOUCH_SCREEN,
 	    .name = "Nexus 4 touch screen",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

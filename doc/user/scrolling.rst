@@ -124,6 +124,12 @@ button lock, the button is now considered logically held down. Pressing and
 releasing the button a second time logically releases the button. While the
 button is logically held down, motion events are converted to scroll events.
 
+If the button is held and used to scroll for longer than a short grace
+period, releasing the button does not engage the lock. This allows
+hold-to-scroll for short, precise adjustments without accidentally toggling
+the lock. A quick click or a brief scroll within the grace period still
+engages the lock as normal.
+
 .. _scroll_sources:
 
 ------------------------------------------------------------------------------

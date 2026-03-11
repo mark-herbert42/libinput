@@ -226,4 +226,8 @@ TEST_DEVICE(LITEST_APPLE_KEYBOARD,
 	    .name = "Apple Inc. Apple Internal Keyboard / Trackpad",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = NULL, )
+	    .absinfo = NULL,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

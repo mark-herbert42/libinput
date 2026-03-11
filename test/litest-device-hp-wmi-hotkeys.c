@@ -60,5 +60,6 @@ TEST_DEVICE(LITEST_HP_WMI_HOTKEYS,
 
 	    .udev_properties = {
 		    { "ID_INPUT_SWITCH", "1" },
+		    { "ID_INTEGRATION", "internal" },
 		    { NULL },
 	    })

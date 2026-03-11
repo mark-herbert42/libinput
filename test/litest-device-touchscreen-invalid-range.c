@@ -84,4 +84,8 @@ TEST_DEVICE(LITEST_TOUCHSCREEN_INVALID_RANGE,
 	    .name = "touchscreen-invalid-range",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

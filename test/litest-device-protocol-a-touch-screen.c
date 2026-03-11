@@ -213,4 +213,8 @@ TEST_DEVICE(LITEST_PROTOCOL_A_SCREEN,
 	    .name = "Protocol A touch screen",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

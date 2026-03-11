@@ -158,5 +158,6 @@ TEST_DEVICE(LITEST_WACOM_INTUOS5_PEN,
 	    .absinfo = absinfo,
 	    .udev_properties = {
 		    { "LIBINPUT_DEVICE_GROUP", "wacom-i5-group" },
+		    { "ID_INTEGRATION", "external" },
 		    { NULL },
 	    }, )

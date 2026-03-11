@@ -49,5 +49,6 @@ TEST_DEVICE(LITEST_WHEEL_ONLY,
 	    .events = events,
 	    .udev_properties = {
 		    { "ID_INPUT_KEY", "1" },
+		    { "ID_INTEGRATION", "external" },
 		    { NULL },
 	    }, )

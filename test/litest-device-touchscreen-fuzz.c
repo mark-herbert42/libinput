@@ -84,4 +84,8 @@ TEST_DEVICE(LITEST_MULTITOUCH_FUZZ_SCREEN,
 	    .name = "touchscreen with fuzz",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

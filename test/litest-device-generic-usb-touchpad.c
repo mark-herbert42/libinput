@@ -100,7 +100,7 @@ TEST_DEVICE(LITEST_GENERIC_USBCOMBO_TOUCHPAD,
 	    .events = events,
 	    .absinfo = absinfo,
 	    .udev_properties = {
-		    { "ID_INPUT_TOUCHPAD_INTEGRATION", "external" },
+		    { "ID_INTEGRATION", "external" },
 		    { NULL },
 	    },
 	    .quirk_file = quirk_file, )

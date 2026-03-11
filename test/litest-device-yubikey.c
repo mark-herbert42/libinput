@@ -156,4 +156,8 @@ TEST_DEVICE(LITEST_YUBIKEY,
 	    .name = "Yubico Yubico Yubikey II",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = NULL, )
+	    .absinfo = NULL,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

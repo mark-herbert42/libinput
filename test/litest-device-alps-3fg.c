@@ -173,4 +173,8 @@ TEST_DEVICE(LITEST_ALPS_3FG,
 	    .id = &input_id,
 	    .events = events,
 	    .absinfo = absinfo,
-	    .create = alps_create, )
+	    .create = alps_create,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

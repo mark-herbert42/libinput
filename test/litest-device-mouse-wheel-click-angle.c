@@ -56,5 +56,6 @@ TEST_DEVICE(LITEST_MOUSE_WHEEL_CLICK_ANGLE,
 	    .udev_properties = {
 		    { "MOUSE_WHEEL_CLICK_ANGLE", "-7" },
 		    { "MOUSE_WHEEL_CLICK_ANGLE_HORIZONTAL", "13" },
+		    { "ID_INTEGRATION", "external" },
 		    { NULL },
 	    })

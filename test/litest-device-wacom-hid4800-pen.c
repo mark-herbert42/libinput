@@ -110,4 +110,8 @@ TEST_DEVICE(LITEST_WACOM_HID4800_PEN,
 	    .name = "Wacom HID 4800 Pen",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )

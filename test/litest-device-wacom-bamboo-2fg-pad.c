@@ -76,5 +76,6 @@ TEST_DEVICE(LITEST_WACOM_BAMBOO_2FG_PAD,
 	    .udev_properties = {
 		    { .key = "ID_INPUT_TABLET_PAD", .value = "1" },
 		    { .key = "LIBINPUT_DEVICE_GROUP", .value = "1" },
+		    { .key = "ID_INTEGRATION", .value = "external" },
 		    { NULL },
 	    })

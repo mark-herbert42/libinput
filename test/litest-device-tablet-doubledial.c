@@ -79,5 +79,6 @@ TEST_DEVICE(LITEST_TABLET_DOUBLEDIAL_PAD,
 	    .absinfo = absinfo,
 	    .udev_properties = {
 		    { "ID_INPUT_TABLET_PAD", "1" },
+		    { "ID_INTEGRATION", "external" },
 		    { NULL },
 	    }, )

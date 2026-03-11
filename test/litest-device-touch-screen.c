@@ -93,4 +93,8 @@ TEST_DEVICE(LITEST_GENERIC_MULTITOUCH_SCREEN,
 	    .name = "generic-mt",
 	    .id = &input_id,
 	    .events = events,
-	    .absinfo = absinfo, )
+	    .absinfo = absinfo,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "internal" },
+		    { NULL },
+	    }, )

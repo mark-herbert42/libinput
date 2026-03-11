@@ -120,6 +120,6 @@ TEST_DEVICE(LITEST_MAGIC_TRACKPAD,
 	    .absinfo = absinfo,
 
 	    .udev_properties = {
-		    { "ID_INPUT_TOUCHPAD_INTEGRATION", "external" },
+		    { "ID_INTEGRATION", "external" },
 		    { NULL },
 	    }, )

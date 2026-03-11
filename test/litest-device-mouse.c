@@ -52,4 +52,8 @@ TEST_DEVICE(LITEST_MOUSE,
 	    .name = "Lenovo Optical USB Mouse",
 	    .id = &input_id,
 	    .absinfo = NULL,
-	    .events = events, )
+	    .events = events,
+	    .udev_properties = {
+		    { "ID_INTEGRATION", "external" },
+		    { NULL },
+	    }, )
