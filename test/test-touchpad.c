@@ -453,9 +453,9 @@ START_TEST(touchpad_2fg_scroll_slow_distance)
 		litest_assert(axisval >= 0.0);
 
 		/* this is to verify we test the right thing, if the value
-		   is greater than scroll.threshold we triggered the wrong
-		   condition */
-		litest_assert(axisval < 5.0);
+		   is greater than direction_lock_threshold we triggered the
+		   wrong condition */
+		litest_assert(axisval < 13.0);
 
 		libinput_event_destroy(event);
 		event = libinput_get_event(li);

@@ -1090,7 +1090,17 @@ START_TEST(pointer_scroll_wheel_lenovo_scrollpoint)
 
 	/* Lenovo ScrollPoint has a trackstick instead of a wheel, data sent
 	 * via REL_WHEEL is close to x/y coordinate space.
+	 *
+	 * The first scroll event after a press absorbs scroll.threshold (5)
+	 * of motion. Send a priming event
+	 * of magnitude 18 first so the actual test events emit their full
+	 * delta.
 	 */
+	litest_event(dev, EV_REL, REL_WHEEL, 18);
+	litest_event(dev, EV_SYN, SYN_REPORT, 0);
+	litest_dispatch(li);
+	litest_drain_events(li);
+
 	litest_event(dev, EV_REL, REL_WHEEL, 30);
 	litest_event(dev, EV_SYN, SYN_REPORT, 0);
 	litest_event(dev, EV_REL, REL_WHEEL, -60);
@@ -1552,22 +1562,25 @@ START_TEST(pointer_scroll_button)
 
 	litest_drain_events(li);
 
-	litest_button_scroll(dev, BTN_LEFT, 1, 6);
+	/* the scroll-on threshold eats ~5 from the input magnitude and the
+	 * antijitter bevel takes another 1 off the emitted value, so we push
+	 * the scroll by enough to leave the asserted minimum on the wire. */
+	litest_button_scroll(dev, BTN_LEFT, 1, 13);
 	litest_assert_scroll(li,
 			     LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS,
 			     LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL,
 			     6);
-	litest_button_scroll(dev, BTN_LEFT, 1, -7);
+	litest_button_scroll(dev, BTN_LEFT, 1, -14);
 	litest_assert_scroll(li,
 			     LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS,
 			     LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL,
 			     -7);
-	litest_button_scroll(dev, BTN_LEFT, 8, 1);
+	litest_button_scroll(dev, BTN_LEFT, 15, 1);
 	litest_assert_scroll(li,
 			     LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS,
 			     LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL,
 			     8);
-	litest_button_scroll(dev, BTN_LEFT, -9, 1);
+	litest_button_scroll(dev, BTN_LEFT, -16, 1);
 	litest_assert_scroll(li,
 			     LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS,
 			     LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL,
@@ -1588,6 +1601,95 @@ START_TEST(pointer_scroll_button)
 	libinput_device_config_scroll_set_button(
 		dev->libinput_device,
 		libinput_device_config_scroll_get_default_button(dev->libinput_device));
+}
+END_TEST
+
+START_TEST(pointer_scroll_button_axis_unlock)
+{
+	struct litest_device *dev = litest_current_device();
+	struct libinput *li = dev->libinput;
+	int i;
+
+	libinput_device_config_scroll_set_method(dev->libinput_device,
+						 LIBINPUT_CONFIG_SCROLL_ON_BUTTON_DOWN);
+	libinput_device_config_scroll_set_button(dev->libinput_device, BTN_LEFT);
+	litest_drain_events(li);
+
+	litest_button_click_debounced(dev, li, BTN_LEFT, true);
+	litest_timeout_buttonscroll(li);
+	litest_drain_events(li);
+
+	/* 30 units of vertical motion commits to the vertical axis */
+	for (i = 0; i < 30; i++) {
+		litest_event(dev, EV_REL, REL_Y, 1);
+		litest_event(dev, EV_SYN, SYN_REPORT, 0);
+	}
+	litest_dispatch(li);
+	litest_drain_events(li);
+
+	/* Sustained horizontal motion should rotate the direction accumulator
+	 * and eventually break out of the vertical lock */
+	for (i = 0; i < 30; i++) {
+		litest_event(dev, EV_REL, REL_X, 1);
+		litest_event(dev, EV_SYN, SYN_REPORT, 0);
+	}
+	litest_button_click_debounced(dev, li, BTN_LEFT, false);
+	litest_dispatch(li);
+
+	litest_assert_scroll(li,
+			     LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS,
+			     LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL,
+			     1);
+}
+END_TEST
+
+START_TEST(pointer_scroll_button_axis_lock_drift)
+{
+	struct litest_device *dev = litest_current_device();
+	struct libinput *li = dev->libinput;
+	int i;
+	int n_vertical = 0;
+
+	libinput_device_config_scroll_set_method(dev->libinput_device,
+						 LIBINPUT_CONFIG_SCROLL_ON_BUTTON_DOWN);
+	libinput_device_config_scroll_set_button(dev->libinput_device, BTN_LEFT);
+	litest_drain_events(li);
+
+	litest_button_click_debounced(dev, li, BTN_LEFT, true);
+	litest_timeout_buttonscroll(li);
+	litest_drain_events(li);
+
+	/* Sustained vertical motion with small simultaneous horizontal noise,
+	 * as happens when a hand drifts slightly off-axis during scrolling.
+	 * The vertical axis lock must hold — no horizontal scroll emitted. */
+	for (i = 0; i < 30; i++) {
+		litest_event(dev, EV_REL, REL_X, 1);
+		litest_event(dev, EV_REL, REL_Y, 3);
+		litest_event(dev, EV_SYN, SYN_REPORT, 0);
+	}
+	litest_dispatch(li);
+
+	struct libinput_event *event;
+	while ((event = libinput_get_event(li))) {
+		enum libinput_event_type t = libinput_event_get_type(event);
+		if (t == LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS ||
+		    t == LIBINPUT_EVENT_POINTER_AXIS) {
+			struct libinput_event_pointer *ptrev =
+				libinput_event_get_pointer_event(event);
+			litest_assert(!libinput_event_pointer_has_axis(
+				ptrev,
+				LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL));
+			if (libinput_event_pointer_has_axis(
+				    ptrev,
+				    LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL))
+				n_vertical++;
+		}
+		libinput_event_destroy(event);
+	}
+	litest_assert_int_gt(n_vertical, 30);
+
+	litest_button_click_debounced(dev, li, BTN_LEFT, false);
+	litest_dispatch(li);
 }
 END_TEST
 
@@ -1764,8 +1866,8 @@ START_TEST(pointer_scroll_button_lock)
 	litest_timeout_buttonscroll(li);
 
 	for (int i = 0; i < 10; i++) {
-		litest_event(dev, EV_REL, REL_X, 1);
-		litest_event(dev, EV_REL, REL_Y, 6);
+		litest_event(dev, EV_REL, REL_X, 3);
+		litest_event(dev, EV_REL, REL_Y, 13);
 		litest_event(dev, EV_SYN, SYN_REPORT, 0);
 	}
 
@@ -1873,8 +1975,8 @@ START_TEST(pointer_scroll_button_lock_enable_while_down)
 	litest_timeout_buttonscroll(li);
 
 	for (int i = 0; i < 10; i++) {
-		litest_event(dev, EV_REL, REL_X, 1);
-		litest_event(dev, EV_REL, REL_Y, 6);
+		litest_event(dev, EV_REL, REL_X, 3);
+		litest_event(dev, EV_REL, REL_Y, 13);
 		litest_event(dev, EV_SYN, SYN_REPORT, 0);
 	}
 
@@ -1937,8 +2039,8 @@ START_TEST(pointer_scroll_button_lock_enable_while_down_just_lock)
 	litest_timeout_buttonscroll(li);
 
 	for (int i = 0; i < 10; i++) {
-		litest_event(dev, EV_REL, REL_X, 1);
-		litest_event(dev, EV_REL, REL_Y, 6);
+		litest_event(dev, EV_REL, REL_X, 3);
+		litest_event(dev, EV_REL, REL_Y, 13);
 		litest_event(dev, EV_SYN, SYN_REPORT, 0);
 	}
 
@@ -2056,8 +2158,8 @@ START_TEST(pointer_scroll_button_lock_enable_while_otherbutton_down)
 	litest_assert_empty_queue(li);
 
 	for (int i = 0; i < 10; i++) {
-		litest_event(dev, EV_REL, REL_X, 1);
-		litest_event(dev, EV_REL, REL_Y, 6);
+		litest_event(dev, EV_REL, REL_X, 3);
+		litest_event(dev, EV_REL, REL_Y, 13);
 		litest_event(dev, EV_SYN, SYN_REPORT, 0);
 	}
 
@@ -2151,10 +2253,9 @@ START_TEST(pointer_scroll_button_lock_middlebutton)
 	litest_timeout_middlebutton(li);
 	litest_timeout_buttonscroll(li);
 
-	/* motion events are the same for all of them */
 	for (int i = 0; i < 10; i++) {
-		litest_event(dev, EV_REL, REL_X, 1);
-		litest_event(dev, EV_REL, REL_Y, 6);
+		litest_event(dev, EV_REL, REL_X, 2);
+		litest_event(dev, EV_REL, REL_Y, 13);
 		litest_event(dev, EV_SYN, SYN_REPORT, 0);
 	}
 
@@ -3933,6 +4034,8 @@ TEST_COLLECTION(pointer)
 	litest_add_for_device(pointer_scroll_wheel_no_inhibit_small_deltas_when_virtual, LITEST_MOUSE_VIRTUAL);
 	litest_add_for_device(pointer_scroll_wheel_lenovo_scrollpoint, LITEST_LENOVO_SCROLLPOINT);
 	litest_add(pointer_scroll_button, LITEST_RELATIVE|LITEST_BUTTON, LITEST_ANY);
+	litest_add(pointer_scroll_button_axis_unlock, LITEST_RELATIVE|LITEST_BUTTON, LITEST_ANY);
+	litest_add(pointer_scroll_button_axis_lock_drift, LITEST_RELATIVE|LITEST_BUTTON, LITEST_ANY);
 	litest_add(pointer_scroll_button_noscroll, LITEST_ABSOLUTE|LITEST_BUTTON, LITEST_RELATIVE);
 	litest_add(pointer_scroll_button_noscroll, LITEST_ANY, LITEST_RELATIVE|LITEST_BUTTON);
 	litest_add(pointer_scroll_button_no_event_before_timeout, LITEST_RELATIVE|LITEST_BUTTON, LITEST_ANY);
