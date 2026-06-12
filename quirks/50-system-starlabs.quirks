@@ -6,3 +6,18 @@ MatchUdevType=touchpad
 MatchDMIModalias=dmi:*:svnStarLabs:*
 AttrEventCode=-BTN_RIGHT
 AttrInputProp=+INPUT_PROP_BUTTONPAD
+
+[StarLite Detachable Keyboard (1018:1006)]
+MatchUdevType=keyboard
+MatchBus=usb
+MatchVendor=0x1018
+MatchProduct=0x1006
+AttrKeyboardIntegration=internal
+AttrEventCode=-REL_X;-REL_Y;-REL_HWHEEL;-REL_WHEEL;-REL_WHEEL_HI_RES;-REL_HWHEEL_HI_RES;-BTN_LEFT;-BTN_RIGHT;-BTN_MIDDLE;
+
+[StarLite Detachable Keyboard Mouse Emulation (1018:1006)]
+MatchUdevType=mouse
+MatchBus=usb
+MatchVendor=0x1018
+MatchProduct=0x1006
+AttrEventCode=-REL_X;-REL_Y;-REL_HWHEEL;-REL_WHEEL;-REL_WHEEL_HI_RES;-REL_HWHEEL_HI_RES;-BTN_LEFT;-BTN_RIGHT;-BTN_MIDDLE;
