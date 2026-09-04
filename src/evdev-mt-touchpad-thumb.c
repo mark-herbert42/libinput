@@ -94,7 +94,8 @@ tp_thumb_detect_pressure_size(const struct tp_dispatch *tp, const struct tp_touc
 {
 	bool is_thumb = false;
 
-	if (tp->thumb.use_pressure && t->pressure > tp->thumb.pressure_threshold &&
+	if (tp->thumb.pressure_as_contact_area &&
+	    t->pressure > tp->thumb.pressure_threshold &&
 	    tp_thumb_in_exclusion_area(tp, t)) {
 		is_thumb = true;
 	}
@@ -115,7 +116,7 @@ tp_thumb_needs_jail(const struct tp_dispatch *tp, const struct tp_touch *t)
 		return false;
 
 	if (!tp_thumb_in_exclusion_area(tp, t) &&
-	    (tp->thumb.use_size || tp->thumb.use_pressure) &&
+	    (tp->thumb.use_size || tp->thumb.pressure_as_contact_area) &&
 	    !tp_thumb_detect_pressure_size(tp, t))
 		return false;
 
@@ -383,7 +384,7 @@ tp_init_thumb(struct tp_dispatch *tp)
 		return;
 
 	tp->thumb.detect_thumbs = true;
-	tp->thumb.use_pressure = false;
+	tp->thumb.pressure_as_contact_area = false;
 	tp->thumb.pressure_threshold = INT_MAX;
 	tp->thumb.size_threshold = INT_MAX;
 
@@ -402,7 +403,7 @@ tp_init_thumb(struct tp_dispatch *tp)
 		if (quirks_get_uint32(q,
 				      QUIRK_ATTR_THUMB_PRESSURE_THRESHOLD,
 				      &threshold)) {
-			tp->thumb.use_pressure = true;
+			tp->thumb.pressure_as_contact_area = true;
 			tp->thumb.pressure_threshold = threshold;
 		}
 	}
@@ -418,7 +419,7 @@ tp_init_thumb(struct tp_dispatch *tp)
 
 	evdev_log_debug(device,
 			"thumb: enabled thumb detection (area%s%s)\n",
-			tp->thumb.use_pressure ? ", pressure" : "",
+			tp->thumb.pressure_as_contact_area ? ", pressure" : "",
 			tp->thumb.use_size ? ", size" : "");
 }
 

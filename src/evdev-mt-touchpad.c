@@ -1034,7 +1034,7 @@ tp_palm_detect_pressure_triggered(struct tp_dispatch *tp,
 				  struct tp_touch *t,
 				  usec_t time)
 {
-	if (!tp->palm.use_pressure)
+	if (!tp->palm.pressure_as_contact_area)
 		return false;
 
 	if (t->palm.state != PALM_NONE && t->palm.state != PALM_PRESSURE)
@@ -1316,7 +1316,7 @@ tp_unhover_fake_touches(struct tp_dispatch *tp, usec_t time)
 static void
 tp_unhover_touches(struct tp_dispatch *tp, usec_t time)
 {
-	if (tp->pressure.use_pressure)
+	if (tp->pressure.as_contact_area)
 		tp_unhover_pressure(tp, time);
 	else if (tp->touch_size.use_touch_size)
 		tp_unhover_size(tp, time);
@@ -2832,7 +2832,7 @@ tp_interface_disable_feature(struct evdev_dispatch *dispatch,
 		break;
 	case LIBINPUT_FEATURE_TOUCHPAD_PALM_DETECTION:
 		tp->palm.use_mt_tool = false;
-		tp->palm.use_pressure = false;
+		tp->palm.pressure_as_contact_area = false;
 		tp->palm.use_size = false;
 		tp->palm.right_edge = INT_MAX;
 		tp->palm.left_edge = INT_MIN;
@@ -3461,13 +3461,13 @@ static inline void
 tp_init_palmdetect_pressure(struct tp_dispatch *tp, struct evdev_device *device)
 {
 	if (!libevdev_has_event_code(device->evdev, EV_ABS, ABS_MT_PRESSURE)) {
-		tp->palm.use_pressure = false;
+		tp->palm.pressure_as_contact_area = false;
 		return;
 	}
 
 	tp->palm.pressure_threshold = tp_read_palm_pressure_prop(tp, device);
 	if (tp->palm.pressure_threshold != 0) {
-		tp->palm.use_pressure = true;
+		tp->palm.pressure_as_contact_area = true;
 
 		evdev_log_debug(device,
 				"palm: pressure threshold is %d\n",
@@ -3654,7 +3654,7 @@ tp_init_pressure(struct tp_dispatch *tp, struct evdev_device *device)
 
 	code = tp->has_mt ? ABS_MT_PRESSURE : ABS_PRESSURE;
 	if (!libevdev_has_event_code(device->evdev, EV_ABS, code)) {
-		tp->pressure.use_pressure = false;
+		tp->pressure.as_contact_area = false;
 		return;
 	}
 
@@ -3689,7 +3689,7 @@ tp_init_pressure(struct tp_dispatch *tp, struct evdev_device *device)
 		return;
 	}
 
-	tp->pressure.use_pressure = true;
+	tp->pressure.as_contact_area = true;
 	tp->pressure.high = hi;
 	tp->pressure.low = lo;
 

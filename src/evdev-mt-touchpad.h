@@ -326,7 +326,7 @@ struct tp_dispatch {
 	/* if pressure goes above high -> touch down,
 	   if pressure then goes below low -> touch up */
 	struct {
-		bool use_pressure;
+		bool as_contact_area;
 		int high;
 		int low;
 	} pressure;
@@ -481,7 +481,7 @@ struct tp_dispatch {
 
 		bool use_mt_tool;
 
-		bool use_pressure;
+		bool pressure_as_contact_area;
 		int pressure_threshold;
 
 		bool use_size;
@@ -519,7 +519,7 @@ struct tp_dispatch {
 		int upper_thumb_line;
 		int lower_thumb_line;
 
-		bool use_pressure;
+		bool pressure_as_contact_area;
 		int pressure_threshold;
 
 		bool use_size;
