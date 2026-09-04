@@ -44,6 +44,8 @@
 #define DEFAULT_KEYBOARD_ACTIVITY_TIMEOUT_2 usec_from_millis(500)
 #define FAKE_FINGER_OVERFLOW bit(7)
 #define THUMB_IGNORE_SPEED_THRESHOLD 20 /* mm/s */
+#define HID_HP_WAVEFORMPRESS   0x1006
+#define HID_HP_WAVEFORMRELEASE 0x1007
 
 #define MOUSE_HAS_SENT_EVENTS bit(1)
 
@@ -155,6 +157,100 @@ tp_calculate_motion_speed(struct tp_dispatch *tp, struct tp_touch *t, usec_t tim
 	speed *= 1000000;                                   /* mm/s */
 
 	t->speed.last_speed = speed;
+}
+
+static void
+tp_process_haptics(struct tp_dispatch *tp, usec_t time, uint16_t total_pressure)
+{
+	if (tp->haptic.pending_effect)
+		return;
+	// evdev_log_debug(tp->device, "Pressure: %d\n", total_pressure);
+
+	switch (tp->haptic.current_click_level) {
+	case HAPTIC_NONE:
+		if (total_pressure >= tp->haptic.settings.click.trigger_threshold *
+					      max(1, tp->nfingers_down)) {
+			tp->haptic.nfingers_used = max(1, tp->nfingers_down);
+
+			tp->buttons.state |= bit(0);
+			tp->queued |= TOUCHPAD_EVENT_BUTTON_PRESS;
+
+			tp->haptic.pending_effect = HAPTIC_CLICK;
+			tp->haptic.current_click_level = HAPTIC_CLICK;
+		}
+		break;
+
+	case HAPTIC_CLICK:
+		if (total_pressure < tp->haptic.settings.click.release_threshold *
+					     tp->haptic.nfingers_used) {
+			tp->buttons.state &= ~bit(0);
+			tp->queued |= TOUCHPAD_EVENT_BUTTON_RELEASE;
+
+			tp->haptic.pending_effect = HAPTIC_RELEASE;
+			tp->haptic.current_click_level = HAPTIC_NONE;
+
+		} else if (total_pressure >=
+			   tp->haptic.settings.deep_click.trigger_threshold *
+				   max(1, tp->nfingers_down)) {
+			tp->haptic.nfingers_used = max(1, tp->nfingers_down);
+
+			// Triggers a deep click gesture event.
+			gesture_notify_deep_click_begin(&tp->device->base,
+							time,
+							tp->haptic.nfingers_used);
+
+			tp->haptic.pending_effect = HAPTIC_DEEP_CLICK;
+			tp->haptic.current_click_level = HAPTIC_DEEP_CLICK;
+		}
+		break;
+
+	case HAPTIC_DEEP_CLICK:
+
+		if (total_pressure < tp->haptic.settings.deep_click.release_threshold *
+					     tp->haptic.nfingers_used) {
+			gesture_notify_deep_click_end(&tp->device->base,
+						      time,
+						      tp->haptic.nfingers_used,
+						      false);
+
+			tp->haptic.pending_effect = HAPTIC_DEEP_RELEASE;
+			tp->haptic.current_click_level = HAPTIC_CLICK;
+		}
+		break;
+
+	case HAPTIC_RELEASE:
+	case HAPTIC_DEEP_RELEASE:
+		break;
+	}
+}
+
+static void
+tp_send_haptics(struct tp_dispatch *tp)
+{
+
+	if (tp->haptic.pending_effect) {
+		struct input_event effect = { .type = EV_FF, .value = 1 };
+
+		switch (tp->haptic.pending_effect) {
+		case HAPTIC_CLICK:
+			effect.code = tp->haptic.effect.click.id;
+			break;
+		case HAPTIC_RELEASE:
+			effect.code = tp->haptic.effect.release.id;
+			break;
+		case HAPTIC_DEEP_CLICK:
+			effect.code = tp->haptic.effect.deep_click.id;
+			break;
+		case HAPTIC_DEEP_RELEASE:
+			effect.code = tp->haptic.effect.deep_release.id;
+			break;
+		case HAPTIC_NONE:
+			break;
+		}
+
+		write(tp->device->fd, &effect, sizeof(effect));
+	}
+	tp->haptic.pending_effect = HAPTIC_NONE;
 }
 
 static inline void
@@ -1633,6 +1729,7 @@ tp_process_state(struct tp_dispatch *tp, usec_t time)
 	bool want_motion_reset;
 	bool have_new_touch = false;
 	unsigned int speed_exceeded_count = 0;
+	uint16_t total_pressure = 0;
 
 	tp_position_fake_touches(tp);
 
@@ -1649,6 +1746,8 @@ tp_process_state(struct tp_dispatch *tp, usec_t time)
 			tp_motion_history_reset(t);
 			t->quirks.reset_motion_history = false;
 		}
+
+		total_pressure += t->pressure;
 
 		if (!t->dirty) {
 			/* A non-dirty touch must be below the speed limit */
@@ -1712,6 +1811,13 @@ tp_process_state(struct tp_dispatch *tp, usec_t time)
 		if (t->state == TOUCH_BEGIN) {
 			have_new_touch = true;
 			restart_filter = true;
+		}
+	}
+
+	if (tp->is_haptic_touchpad && tp->haptic.hostmode_enabled) {
+		tp_process_haptics(tp, time, total_pressure);
+		if (tp->haptic.pending_effect) {
+			tp_send_haptics(tp);
 		}
 	}
 
@@ -1944,6 +2050,12 @@ tp_remove_sendevents(struct tp_dispatch *tp)
 	if (tp->tablet_mode_switch.tablet_mode_switch)
 		libinput_device_remove_event_listener(&tp->tablet_mode_switch.listener);
 }
+static void
+tp_remove_haptics(struct tp_dispatch *tp)
+{
+	evdev_log_debug(tp->device, "Removing haptics now\n");
+	tp->haptic.hostmode_enabled = false;
+}
 
 static void
 tp_interface_remove(struct evdev_dispatch *dispatch)
@@ -1958,6 +2070,7 @@ tp_interface_remove(struct evdev_dispatch *dispatch)
 	}
 	tp->dwt.keyboard_active = false;
 
+	tp_remove_haptics(tp);
 	tp_remove_tap(tp);
 	tp_remove_buttons(tp);
 	tp_remove_sendevents(tp);
@@ -1989,6 +2102,19 @@ tp_release_fake_touches(struct tp_dispatch *tp)
 }
 
 static void
+tp_haptics_cancel(struct tp_dispatch *tp, usec_t time)
+{
+	if (tp->is_haptic_touchpad &&
+	    tp->haptic.current_click_level == HAPTIC_DEEP_CLICK) {
+		gesture_notify_deep_click_end(&tp->device->base,
+					      time,
+					      tp->haptic.nfingers_used,
+					      true);
+		tp->haptic.current_click_level = HAPTIC_NONE;
+	}
+}
+
+static void
 tp_clear_state(struct tp_dispatch *tp)
 {
 	usec_t now = libinput_now(tp_libinput_context(tp));
@@ -2007,6 +2133,7 @@ tp_clear_state(struct tp_dispatch *tp)
 	 * Then reset thumb state.
 	 *
 	 */
+	tp_haptics_cancel(tp, now);
 	tp_release_all_buttons(tp, now);
 	tp_release_all_taps(tp, now);
 
@@ -2093,6 +2220,158 @@ tp_sync_slots(struct tp_dispatch *tp, struct evdev_device *device)
 }
 
 static void
+tp_init_effect(struct tp_dispatch *tp,
+	       struct ff_effect *effect,
+	       enum haptic_effect effect_enum,
+	       int id)
+{
+	effect->type = FF_HAPTIC;
+	effect->id = id;
+
+	switch (effect_enum) {
+	case HAPTIC_CLICK:
+		effect->u.haptic.hid_usage = HID_HP_WAVEFORMPRESS;
+		effect->u.haptic.intensity =
+			tp->haptic.settings.click.trigger_intensity;
+		break;
+
+	case HAPTIC_DEEP_CLICK:
+		effect->u.haptic.hid_usage = HID_HP_WAVEFORMPRESS;
+		effect->u.haptic.intensity =
+			tp->haptic.settings.deep_click.trigger_intensity;
+		break;
+
+	case HAPTIC_RELEASE:
+		effect->u.haptic.hid_usage = HID_HP_WAVEFORMRELEASE;
+		effect->u.haptic.intensity =
+			tp->haptic.settings.click.release_intensity;
+		break;
+	case HAPTIC_DEEP_RELEASE:
+		effect->u.haptic.hid_usage = HID_HP_WAVEFORMRELEASE;
+		effect->u.haptic.intensity =
+			tp->haptic.settings.deep_click.release_intensity;
+		break;
+	default:
+		break;
+	}
+
+	evdev_log_debug(tp->device,
+			"tp_init_effect: effect=%d id=%d intensity=%d\n",
+			effect_enum,
+			effect->id,
+			effect->u.haptic.intensity);
+}
+
+static int
+tp_haptics_is_available(struct libinput_device *device)
+{
+	return 1;
+}
+
+static struct libinput_config_haptics
+tp_haptics_get_haptics_settings(struct libinput_device *device)
+{
+	struct evdev_device *evdev = evdev_device(device);
+	struct tp_dispatch *tp = tp_dispatch(evdev->dispatch);
+
+	return tp->haptic.settings;
+}
+
+static enum libinput_config_status
+tp_haptics_set_haptics_settings(struct libinput_device *device,
+				struct libinput_config_haptics *configuration)
+{
+	struct evdev_device *evdev = evdev_device(device);
+	struct tp_dispatch *tp = tp_dispatch(evdev->dispatch);
+
+	tp->haptic.settings = *configuration;
+
+	tp_init_effect(tp,
+		       &tp->haptic.effect.click,
+		       HAPTIC_CLICK,
+		       tp->haptic.effect.click.id);
+	tp_init_effect(tp,
+		       &tp->haptic.effect.deep_click,
+		       HAPTIC_DEEP_CLICK,
+		       tp->haptic.effect.deep_click.id);
+	tp_init_effect(tp,
+		       &tp->haptic.effect.release,
+		       HAPTIC_RELEASE,
+		       tp->haptic.effect.release.id);
+	tp_init_effect(tp,
+		       &tp->haptic.effect.deep_release,
+		       HAPTIC_DEEP_RELEASE,
+		       tp->haptic.effect.deep_release.id);
+
+	if (libevdev_upload_ff_effect(evdev->evdev, &tp->haptic.effect.click))
+		goto err;
+
+	if (libevdev_upload_ff_effect(evdev->evdev, &tp->haptic.effect.deep_click))
+		goto err;
+
+	if (libevdev_upload_ff_effect(evdev->evdev, &tp->haptic.effect.release))
+		goto err;
+
+	if (libevdev_upload_ff_effect(evdev->evdev, &tp->haptic.effect.deep_release))
+		goto err;
+
+	return LIBINPUT_CONFIG_STATUS_SUCCESS;
+
+err:
+	evdev_log_debug(tp->device, "Error in updating effects\n");
+	return LIBINPUT_CONFIG_STATUS_INVALID;
+}
+
+static void
+tp_init_haptics(struct tp_dispatch *tp, struct evdev_device *device)
+{
+	/* These are arbitrary default values - Configure through exported functions. */
+	tp->haptic.settings.click.trigger_threshold = 130;
+	tp->haptic.settings.click.release_threshold = 120;
+	tp->haptic.settings.deep_click.trigger_threshold = 500;
+	tp->haptic.settings.deep_click.release_threshold = 490;
+
+	tp->haptic.settings.click.trigger_intensity = 15;
+	tp->haptic.settings.click.release_intensity = 15;
+	tp->haptic.settings.deep_click.trigger_intensity = 70;
+	tp->haptic.settings.deep_click.release_intensity = 20;
+
+	tp_init_effect(tp, &tp->haptic.effect.click, HAPTIC_CLICK, -1);
+	tp_init_effect(tp, &tp->haptic.effect.deep_click, HAPTIC_DEEP_CLICK, -1);
+	tp_init_effect(tp, &tp->haptic.effect.release, HAPTIC_RELEASE, -1);
+	tp_init_effect(tp, &tp->haptic.effect.deep_release, HAPTIC_DEEP_RELEASE, -1);
+
+	if (libevdev_upload_ff_effect(device->evdev, &tp->haptic.effect.click))
+		goto err;
+
+	if (libevdev_upload_ff_effect(device->evdev, &tp->haptic.effect.deep_click))
+		goto err;
+
+	if (libevdev_upload_ff_effect(device->evdev, &tp->haptic.effect.release))
+		goto err;
+
+	if (libevdev_upload_ff_effect(device->evdev, &tp->haptic.effect.deep_release))
+		goto err;
+
+	tp->haptic.config_functions.is_available = tp_haptics_is_available;
+	tp->haptic.config_functions.get_haptics_settings =
+		tp_haptics_get_haptics_settings;
+	tp->haptic.config_functions.set_haptics_settings =
+		tp_haptics_set_haptics_settings;
+
+	device->base.config.haptics = &tp->haptic.config_functions;
+
+	tp->haptic.hostmode_enabled = true;
+	evdev_log_debug(tp->device, "Haptics Initiated.\n");
+	return;
+
+err:
+	evdev_log_debug(tp->device, "Error in uploading effects\n");
+	tp->haptic.hostmode_enabled = false;
+	return;
+}
+
+static void
 tp_resume(struct tp_dispatch *tp,
 	  struct evdev_device *device,
 	  enum suspend_trigger trigger)
@@ -2109,6 +2388,8 @@ tp_resume(struct tp_dispatch *tp,
 		evdev_notify_resumed_device(device);
 	} else {
 		evdev_device_resume(device);
+		if (tp->is_haptic_touchpad)
+			tp_init_haptics(tp, device);
 	}
 
 	tp_sync_slots(tp, device);
@@ -3460,7 +3741,8 @@ tp_read_palm_pressure_prop(struct tp_dispatch *tp, const struct evdev_device *de
 static inline void
 tp_init_palmdetect_pressure(struct tp_dispatch *tp, struct evdev_device *device)
 {
-	if (!libevdev_has_event_code(device->evdev, EV_ABS, ABS_MT_PRESSURE)) {
+	if (!libevdev_has_event_code(device->evdev, EV_ABS, ABS_MT_PRESSURE) ||
+	    tp->is_haptic_touchpad) {
 		tp->palm.pressure_as_contact_area = false;
 		return;
 	}
@@ -3653,7 +3935,8 @@ tp_init_pressure(struct tp_dispatch *tp, struct evdev_device *device)
 	int hi, lo;
 
 	code = tp->has_mt ? ABS_MT_PRESSURE : ABS_PRESSURE;
-	if (!libevdev_has_event_code(device->evdev, EV_ABS, code)) {
+	if (!libevdev_has_event_code(device->evdev, EV_ABS, code) ||
+	    tp->is_haptic_touchpad) {
 		tp->pressure.as_contact_area = false;
 		return;
 	}
@@ -3752,8 +4035,18 @@ tp_init_pressurepad(struct tp_dispatch *tp, struct evdev_device *device)
 	 */
 	if (libevdev_has_property(device->evdev, INPUT_PROP_PRESSUREPAD) ||
 	    libevdev_get_abs_resolution(device->evdev, ABS_MT_PRESSURE) != 0) {
-		libevdev_disable_event_code(device->evdev, EV_ABS, ABS_MT_PRESSURE);
-		libevdev_disable_event_code(device->evdev, EV_ABS, ABS_PRESSURE);
+
+		if (libevdev_has_event_code(device->evdev, EV_FF, FF_HAPTIC)) {
+			tp->is_haptic_touchpad = true;
+			evdev_log_debug(tp->device, "Is a haptic trackpad");
+		} else {
+			libevdev_disable_event_code(device->evdev,
+						    EV_ABS,
+						    ABS_MT_PRESSURE);
+			libevdev_disable_event_code(device->evdev,
+						    EV_ABS,
+						    ABS_PRESSURE);
+		}
 	}
 }
 
@@ -3772,6 +4065,8 @@ tp_init(struct tp_dispatch *tp, struct evdev_device *device)
 
 	tp_init_default_resolution(tp, device);
 	tp_init_pressurepad(tp, device);
+	if (tp->is_haptic_touchpad)
+		tp_init_haptics(tp, device);
 
 	if (!tp_init_slots(tp, device))
 		return false;

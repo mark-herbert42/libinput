@@ -1879,6 +1879,9 @@ handle_event_libinput(GIOChannel *source, GIOCondition condition, gpointer data)
 			break;
 		case LIBINPUT_EVENT_TABLET_PAD_KEY:
 			break;
+		case LIBINPUT_EVENT_GESTURE_DEEP_CLICK_BEGIN:
+		case LIBINPUT_EVENT_GESTURE_DEEP_CLICK_END:
+			break;
 		case LIBINPUT_EVENT_SWITCH_TOGGLE:
 			break;
 		}

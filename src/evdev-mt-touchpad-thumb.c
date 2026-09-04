@@ -399,7 +399,8 @@ tp_init_thumb(struct tp_dispatch *tp)
 	tp->thumb.lower_thumb_line = edges.y;
 
 	_unref_(quirks) *q = libinput_device_get_quirks(&device->base);
-	if (libevdev_has_event_code(device->evdev, EV_ABS, ABS_MT_PRESSURE)) {
+	if (libevdev_has_event_code(device->evdev, EV_ABS, ABS_MT_PRESSURE) &&
+	    !tp->is_haptic_touchpad) {
 		if (quirks_get_uint32(q,
 				      QUIRK_ATTR_THUMB_PRESSURE_THRESHOLD,
 				      &threshold)) {

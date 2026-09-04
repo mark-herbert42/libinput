@@ -118,6 +118,8 @@ event_type_to_str(enum libinput_event_type type)
 	CASE_RETURN_STRING(LIBINPUT_EVENT_GESTURE_PINCH_END);
 	CASE_RETURN_STRING(LIBINPUT_EVENT_GESTURE_HOLD_BEGIN);
 	CASE_RETURN_STRING(LIBINPUT_EVENT_GESTURE_HOLD_END);
+	CASE_RETURN_STRING(LIBINPUT_EVENT_GESTURE_DEEP_CLICK_BEGIN);
+	CASE_RETURN_STRING(LIBINPUT_EVENT_GESTURE_DEEP_CLICK_END);
 	CASE_RETURN_STRING(LIBINPUT_EVENT_SWITCH_TOGGLE);
 	case LIBINPUT_EVENT_NONE:
 		abort();
@@ -448,7 +450,9 @@ libinput_event_get_gesture_event(struct libinput_event *event)
 			   LIBINPUT_EVENT_GESTURE_PINCH_UPDATE,
 			   LIBINPUT_EVENT_GESTURE_PINCH_END,
 			   LIBINPUT_EVENT_GESTURE_HOLD_BEGIN,
-			   LIBINPUT_EVENT_GESTURE_HOLD_END);
+			   LIBINPUT_EVENT_GESTURE_HOLD_END,
+			   LIBINPUT_EVENT_GESTURE_DEEP_CLICK_BEGIN,
+			   LIBINPUT_EVENT_GESTURE_DEEP_CLICK_END);
 
 	return (struct libinput_event_gesture *)event;
 }
@@ -997,7 +1001,9 @@ libinput_event_gesture_get_time(struct libinput_event_gesture *event)
 			   LIBINPUT_EVENT_GESTURE_SWIPE_UPDATE,
 			   LIBINPUT_EVENT_GESTURE_SWIPE_END,
 			   LIBINPUT_EVENT_GESTURE_HOLD_BEGIN,
-			   LIBINPUT_EVENT_GESTURE_HOLD_END);
+			   LIBINPUT_EVENT_GESTURE_HOLD_END,
+			   LIBINPUT_EVENT_GESTURE_DEEP_CLICK_BEGIN,
+			   LIBINPUT_EVENT_GESTURE_DEEP_CLICK_END);
 
 	return usec_to_millis(event->time);
 }
@@ -1015,7 +1021,9 @@ libinput_event_gesture_get_time_usec(struct libinput_event_gesture *event)
 			   LIBINPUT_EVENT_GESTURE_SWIPE_UPDATE,
 			   LIBINPUT_EVENT_GESTURE_SWIPE_END,
 			   LIBINPUT_EVENT_GESTURE_HOLD_BEGIN,
-			   LIBINPUT_EVENT_GESTURE_HOLD_END);
+			   LIBINPUT_EVENT_GESTURE_HOLD_END,
+			   LIBINPUT_EVENT_GESTURE_DEEP_CLICK_BEGIN,
+			   LIBINPUT_EVENT_GESTURE_DEEP_CLICK_END);
 
 	return usec_as_uint64_t(event->time);
 }
@@ -1033,7 +1041,9 @@ libinput_event_gesture_get_finger_count(struct libinput_event_gesture *event)
 			   LIBINPUT_EVENT_GESTURE_SWIPE_UPDATE,
 			   LIBINPUT_EVENT_GESTURE_SWIPE_END,
 			   LIBINPUT_EVENT_GESTURE_HOLD_BEGIN,
-			   LIBINPUT_EVENT_GESTURE_HOLD_END);
+			   LIBINPUT_EVENT_GESTURE_HOLD_END,
+			   LIBINPUT_EVENT_GESTURE_DEEP_CLICK_BEGIN,
+			   LIBINPUT_EVENT_GESTURE_DEEP_CLICK_END);
 
 	return event->finger_count;
 }
@@ -1046,7 +1056,8 @@ libinput_event_gesture_get_cancelled(struct libinput_event_gesture *event)
 			   0,
 			   LIBINPUT_EVENT_GESTURE_PINCH_END,
 			   LIBINPUT_EVENT_GESTURE_SWIPE_END,
-			   LIBINPUT_EVENT_GESTURE_HOLD_END);
+			   LIBINPUT_EVENT_GESTURE_HOLD_END,
+			   LIBINPUT_EVENT_GESTURE_DEEP_CLICK_END);
 
 	return event->cancelled;
 }
@@ -3218,6 +3229,43 @@ gesture_notify_hold_end(struct libinput_device *device,
 }
 
 void
+gesture_notify_deep_click_begin(struct libinput_device *device,
+				usec_t time,
+				int finger_count)
+{
+	const struct normalized_coords zero = { 0.0, 0.0 };
+
+	gesture_notify(device,
+		       time,
+		       LIBINPUT_EVENT_GESTURE_DEEP_CLICK_BEGIN,
+		       finger_count,
+		       0,
+		       &zero,
+		       &zero,
+		       0,
+		       0.0);
+}
+
+void
+gesture_notify_deep_click_end(struct libinput_device *device,
+			      usec_t time,
+			      int finger_count,
+			      bool cancelled)
+{
+	const struct normalized_coords zero = { 0.0, 0.0 };
+
+	gesture_notify(device,
+		       time,
+		       LIBINPUT_EVENT_GESTURE_DEEP_CLICK_END,
+		       finger_count,
+		       cancelled,
+		       &zero,
+		       &zero,
+		       0,
+		       0.0);
+}
+
+void
 switch_notify_toggle(struct libinput_device *device,
 		     usec_t time,
 		     enum libinput_switch sw,
@@ -3709,7 +3757,9 @@ libinput_event_gesture_get_base_event(struct libinput_event_gesture *event)
 			   LIBINPUT_EVENT_GESTURE_PINCH_UPDATE,
 			   LIBINPUT_EVENT_GESTURE_PINCH_END,
 			   LIBINPUT_EVENT_GESTURE_HOLD_BEGIN,
-			   LIBINPUT_EVENT_GESTURE_HOLD_END);
+			   LIBINPUT_EVENT_GESTURE_HOLD_END,
+			   LIBINPUT_EVENT_GESTURE_DEEP_CLICK_BEGIN,
+			   LIBINPUT_EVENT_GESTURE_DEEP_CLICK_END);
 
 	return &event->base;
 }
@@ -4344,6 +4394,32 @@ LIBINPUT_EXPORT int
 libinput_device_config_accel_is_available(struct libinput_device *device)
 {
 	return device->config.accel ? device->config.accel->available(device) : 0;
+}
+
+LIBINPUT_EXPORT enum libinput_config_status
+libinput_device_config_haptics_set_config(struct libinput_device *device,
+					  struct libinput_config_haptics *configuration)
+{
+	return device->config.haptics
+		       ? device->config.haptics->set_haptics_settings(device,
+								      configuration)
+		       : LIBINPUT_CONFIG_STATUS_UNSUPPORTED;
+}
+
+LIBINPUT_EXPORT struct libinput_config_haptics
+libinput_device_config_haptics_get_config(struct libinput_device *device)
+{
+	if (!device->config.haptics)
+		return (struct libinput_config_haptics){ 0 };
+
+	return device->config.haptics->get_haptics_settings(device);
+}
+
+LIBINPUT_EXPORT int
+libinput_device_config_haptics_is_available(struct libinput_device *device)
+{
+	return device->config.haptics ? device->config.haptics->is_available(device)
+				      : 0;
 }
 
 LIBINPUT_EXPORT enum libinput_config_status

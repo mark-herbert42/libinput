@@ -108,6 +108,12 @@ event_type_to_str(enum libinput_event_type evtype)
 	case LIBINPUT_EVENT_GESTURE_HOLD_END:
 		type = "GESTURE_HOLD_END";
 		break;
+	case LIBINPUT_EVENT_GESTURE_DEEP_CLICK_BEGIN:
+		type = "GESTURE_DEEP_CLICK_BEGIN";
+		break;
+	case LIBINPUT_EVENT_GESTURE_DEEP_CLICK_END:
+		type = "GESTURE_DEEP_CLICK_END";
+		break;
 	case LIBINPUT_EVENT_TABLET_TOOL_AXIS:
 		type = "TABLET_TOOL_AXIS";
 		break;
@@ -789,7 +795,8 @@ print_gesture_event_without_coords(struct libinput_event *ev,
 
 	if (type == LIBINPUT_EVENT_GESTURE_SWIPE_END ||
 	    type == LIBINPUT_EVENT_GESTURE_PINCH_END ||
-	    type == LIBINPUT_EVENT_GESTURE_HOLD_END)
+	    type == LIBINPUT_EVENT_GESTURE_HOLD_END ||
+	    type == LIBINPUT_EVENT_GESTURE_DEEP_CLICK_END)
 		cancelled = libinput_event_gesture_get_cancelled(t);
 
 	print_event_time(time, opts->start_time, libinput_event_gesture_get_time(t));
@@ -1074,6 +1081,12 @@ libinput_event_to_str(struct libinput_event *ev,
 		event_str = print_gesture_event_without_coords(ev, &opts);
 		break;
 	case LIBINPUT_EVENT_GESTURE_HOLD_END:
+		event_str = print_gesture_event_without_coords(ev, &opts);
+		break;
+	case LIBINPUT_EVENT_GESTURE_DEEP_CLICK_BEGIN:
+		event_str = print_gesture_event_without_coords(ev, &opts);
+		break;
+	case LIBINPUT_EVENT_GESTURE_DEEP_CLICK_END:
 		event_str = print_gesture_event_without_coords(ev, &opts);
 		break;
 	case LIBINPUT_EVENT_TABLET_TOOL_AXIS:

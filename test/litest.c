@@ -3702,6 +3702,12 @@ litest_event_type_str(enum libinput_event_type type)
 	case LIBINPUT_EVENT_GESTURE_HOLD_END:
 		str = "GESTURE HOLD END";
 		break;
+	case LIBINPUT_EVENT_GESTURE_DEEP_CLICK_BEGIN:
+		str = "GESTURE DEEP CLICK BEGIN";
+		break;
+	case LIBINPUT_EVENT_GESTURE_DEEP_CLICK_END:
+		str = "GESTURE DEEP CLICK END";
+		break;
 	case LIBINPUT_EVENT_TABLET_TOOL_AXIS:
 		str = "TABLET TOOL AXIS";
 		break;
