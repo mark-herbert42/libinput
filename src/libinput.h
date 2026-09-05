@@ -5046,7 +5046,7 @@ libinput_device_config_tap_set_drag_enabled(struct libinput_device *device,
  * disabled
  *
  * @see libinput_device_config_tap_set_drag_enabled
- * @see libinput_device_config_tap_get_default_default_enabled
+ * @see libinput_device_config_tap_get_default_drag_enabled
  *
  * @since 1.2
  */
@@ -5072,6 +5072,91 @@ libinput_device_config_tap_get_drag_enabled(struct libinput_device *device);
  */
 enum libinput_config_drag_state
 libinput_device_config_tap_get_default_drag_enabled(struct libinput_device *device);
+
+/**
+ * @ingroup config
+ *
+ * A config status to distinguish or set multi finger dragging on a device. Currently
+ * implemented for tap-and-drag only, see
+ * libinput_device_config_tap_set_multi_finger_drag_enabled()
+ *
+ * @since 1.31
+ */
+enum libinput_config_multi_finger_drag_state {
+	/**
+	 * Multi finger drag is to be disabled, or is
+	 * currently disabled.
+	 */
+	LIBINPUT_CONFIG_MULTI_FINGER_DRAG_DISABLED,
+	/**
+	 * Multi finger drag is to be enabled, or is
+	 * currently enabled
+	 */
+	LIBINPUT_CONFIG_MULTI_FINGER_DRAG_ENABLED,
+};
+
+/**
+ * @ingroup config
+ *
+ * Enable or disable multi finger tap-and-drag on this device. When enabled, a
+ * multi finger tap immediately followed by a finger down results in a button down
+ * event, subsequent finger motion thus triggers a drag. The button is released on
+ * finger up. See the libinput documentation for more details.
+ *
+ * @param device The device to configure
+ * @param enable @ref LIBINPUT_CONFIG_MULTI_FINGER_DRAG_ENABLED to enable, @ref
+ * LIBINPUT_CONFIG_MULTI_FINGER_DRAG_DISABLED to disable multi finger tap-and-drag
+ *
+ * @see libinput_device_config_tap_set_multi_finger_drag_enabled
+ * @see libinput_device_config_tap_get_default_multi_finger_drag_enabled
+ *
+ * @since 1.31
+ */
+enum libinput_config_status
+libinput_device_config_tap_set_multi_finger_drag_enabled(
+	struct libinput_device *device,
+	enum libinput_config_multi_finger_drag_state enable);
+
+/**
+ * @ingroup config
+ *
+ * Return whether multi finger tap-and-drag is enabled or disabled on this device.
+ *
+ * @param device The device to check
+ * @retval LIBINPUT_CONFIG_MULTI_FINGER_DRAG_ENABLED if multi finger tap-and-drag is
+ * enabled
+ * @retval LIBINPUT_CONFIG_MULTI_FINGER_DRAG_DISABLED if multi funger tap-and-drag is
+ * disabled
+ *
+ * @see libinput_device_config_tap_set_multi_finger_drag_enabled
+ * @see libinput_device_config_tap_get_default_multi_finger_drag_enabled
+ *
+ * @since 1.31
+ */
+enum libinput_config_multi_finger_drag_state
+libinput_device_config_tap_get_multi_finger_drag_enabled(
+	struct libinput_device *device);
+
+/**
+ * @ingroup config
+ *
+ * Return whether multi finger tap-and-drag is enabled or disabled by default on this
+ * device.
+ *
+ * @param device The device to check
+ * @retval LIBINPUT_CONFIG_MULTI_FINGER_DRAG_ENABLED if multi finger tap-and-drag is
+ * enabled by default
+ * @retval LIBINPUT_CONFIG_MULTI_FINGER_DRAG_DISABLED if multi finger tap-and-drag is
+ * disabled by default
+ *
+ * @see libinput_device_config_tap_set_multi_finger_drag_enabled
+ * @see libinput_device_config_tap_get_multi_finger_drag_enabled
+ *
+ * @since 1.31
+ */
+enum libinput_config_multi_finger_drag_state
+libinput_device_config_tap_get_default_multi_finger_drag_enabled(
+	struct libinput_device *device);
 
 /**
  * @ingroup config

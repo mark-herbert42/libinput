@@ -277,6 +277,14 @@ struct libinput_device_config_tap {
 	enum libinput_config_drag_state (*get_default_drag_enabled)(
 		struct libinput_device *device);
 
+	enum libinput_config_status (*set_multi_finger_drag_enabled)(
+		struct libinput_device *device,
+		enum libinput_config_multi_finger_drag_state);
+	enum libinput_config_multi_finger_drag_state (*get_multi_finger_drag_enabled)(
+		struct libinput_device *device);
+	enum libinput_config_multi_finger_drag_state (
+		*get_default_multi_finger_drag_enabled)(struct libinput_device *device);
+
 	enum libinput_config_status (*set_draglock_enabled)(
 		struct libinput_device *device,
 		enum libinput_config_drag_lock_state);

@@ -458,7 +458,7 @@ tp_tap_touch2_release_handle_event(struct tp_dispatch *tp,
 			      tp->tap.saved_press_time,
 			      2,
 			      LIBINPUT_BUTTON_STATE_PRESSED);
-		if (tp->tap.drag_enabled) {
+		if (tp->tap.drag_enabled && tp->tap.multi_finger_drag_enabled) {
 			tp->tap.state = TAP_STATE_2FGTAP_TAPPED;
 			tp_tap_set_drag_timer(tp, time, 2);
 		} else {
@@ -674,7 +674,7 @@ tp_tap_touch3_release2_handle_event(struct tp_dispatch *tp,
 			      tp->tap.saved_press_time,
 			      3,
 			      LIBINPUT_BUTTON_STATE_PRESSED);
-		if (tp->tap.drag_enabled) {
+		if (tp->tap.drag_enabled && tp->tap.multi_finger_drag_enabled) {
 			tp->tap.state = TAP_STATE_3FGTAP_TAPPED;
 			tp_tap_set_drag_timer(tp, time, 3);
 		} else {
@@ -1526,6 +1526,42 @@ tp_tap_config_get_default_drag_enabled(struct libinput_device *device)
 }
 
 static enum libinput_config_status
+tp_tap_config_set_multi_finger_drag_enabled(
+	struct libinput_device *device,
+	enum libinput_config_multi_finger_drag_state enabled)
+{
+	struct evdev_dispatch *dispatch = evdev_device(device)->dispatch;
+	struct tp_dispatch *tp = tp_dispatch(dispatch);
+
+	tp->tap.multi_finger_drag_enabled = enabled;
+
+	return LIBINPUT_CONFIG_STATUS_SUCCESS;
+}
+
+static enum libinput_config_multi_finger_drag_state
+tp_tap_config_get_multi_finger_drag_enabled(struct libinput_device *device)
+{
+	struct evdev_dispatch *dispatch = evdev_device(device)->dispatch;
+	struct tp_dispatch *tp = tp_dispatch(dispatch);
+
+	return tp->tap.multi_finger_drag_enabled;
+}
+
+static inline enum libinput_config_multi_finger_drag_state
+tp_multi_finger_drag_default(struct evdev_device *device)
+{
+	return LIBINPUT_CONFIG_MULTI_FINGER_DRAG_ENABLED;
+}
+
+static enum libinput_config_multi_finger_drag_state
+tp_tap_config_get_default_multi_finger_drag_enabled(struct libinput_device *device)
+{
+	struct evdev_device *evdev = evdev_device(device);
+
+	return tp_multi_finger_drag_default(evdev);
+}
+
+static enum libinput_config_status
 tp_tap_config_set_draglock_enabled(struct libinput_device *device,
 				   enum libinput_config_drag_lock_state enabled)
 {
@@ -1576,6 +1612,12 @@ tp_init_tap(struct tp_dispatch *tp)
 	tp->tap.config.get_drag_enabled = tp_tap_config_get_drag_enabled;
 	tp->tap.config.get_default_drag_enabled =
 		tp_tap_config_get_default_drag_enabled;
+	tp->tap.config.set_multi_finger_drag_enabled =
+		tp_tap_config_set_multi_finger_drag_enabled;
+	tp->tap.config.get_multi_finger_drag_enabled =
+		tp_tap_config_get_multi_finger_drag_enabled;
+	tp->tap.config.get_default_multi_finger_drag_enabled =
+		tp_tap_config_get_default_multi_finger_drag_enabled;
 	tp->tap.config.set_draglock_enabled = tp_tap_config_set_draglock_enabled;
 	tp->tap.config.get_draglock_enabled = tp_tap_config_get_draglock_enabled;
 	tp->tap.config.get_default_draglock_enabled =
@@ -1587,6 +1629,7 @@ tp_init_tap(struct tp_dispatch *tp)
 	tp->tap.map = LIBINPUT_CONFIG_TAP_MAP_LRM;
 	tp->tap.want_map = tp->tap.map;
 	tp->tap.drag_enabled = tp_drag_default(tp->device);
+	tp->tap.multi_finger_drag_enabled = tp_multi_finger_drag_default(tp->device);
 	tp->tap.drag_lock = tp_drag_lock_default(tp->device);
 
 	struct evdev_device *device = tp->device;
