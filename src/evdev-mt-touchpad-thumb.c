@@ -192,6 +192,34 @@ tp_thumb_revive(struct tp_dispatch *tp, struct tp_touch *t)
 		tp_thumb_set_state(tp, t, THUMB_STATE_REVIVED);
 }
 
+/* Intelligently reset thumb state... Unlike tp_thumb_lift(), this
+ * pays attention to suppression/revival/jailed states so that a thumb
+ * can't be revived more than once.
+ */
+static void
+tp_thumb_reevaluate(struct tp_dispatch *tp)
+{
+	switch (tp->thumb.state) {
+	case THUMB_STATE_FINGER:
+		break;
+	case THUMB_STATE_JAILED:
+	case THUMB_STATE_PINCH:
+		tp->thumb.state = THUMB_STATE_FINGER;
+		tp->thumb.index = UINT_MAX;
+		break;
+	case THUMB_STATE_SUPPRESSED: {
+		struct tp_touch *thumb = tp_thumb_get_touch(tp);
+		if (thumb)
+			tp_thumb_revive(tp, thumb);
+		break;
+	}
+	case THUMB_STATE_REVIVED:
+	case THUMB_STATE_REVIVED_JAILED:
+	case THUMB_STATE_DEAD:
+		break;
+	}
+}
+
 void
 tp_thumb_update_touch(struct tp_dispatch *tp, struct tp_touch *t, usec_t time)
 {
@@ -326,7 +354,7 @@ tp_thumb_update_multifinger(struct tp_dispatch *tp)
 	 */
 
 	if (mm.x < SCROLL_MM_X && mm.y < SCROLL_MM_Y) {
-		tp_thumb_lift(tp);
+		tp_thumb_reevaluate(tp);
 		return;
 	}
 
@@ -341,7 +369,7 @@ tp_thumb_update_multifinger(struct tp_dispatch *tp)
 		usec_t delta = usec_delta(newest->initial_time, oldest->initial_time);
 		if (usec_cmp(delta, THUMB_TIMEOUT) < 0 &&
 		    first->point.y < tp->thumb.lower_thumb_line) {
-			tp_thumb_lift(tp);
+			tp_thumb_reevaluate(tp);
 			return;
 		}
 	}
@@ -357,7 +385,7 @@ tp_thumb_update_multifinger(struct tp_dispatch *tp)
 		else
 			tp_thumb_suppress(tp, first);
 	} else {
-		tp_thumb_lift(tp);
+		tp_thumb_reevaluate(tp);
 	}
 }
 
