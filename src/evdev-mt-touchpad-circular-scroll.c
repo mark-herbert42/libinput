@@ -32,6 +32,12 @@
  * on small pads. */
 #define CIRCULAR_SCROLL_RING_WIDTH_MM 8.0
 
+/* The device reports the center of the finger contact. A finger on the
+ * rim of the pad is reported approximately 5mm inside the axis range.
+ * Measure the ring inward from this reachable edge, not from the axis
+ * edge. */
+#define CIRCULAR_SCROLL_EDGE_MARGIN_MM 5.0
+
 /* Near dead-centre the polar angle is meaningless: atan2 swings by π
  * across a one-pixel crossing of the origin, and small noise on dx or
  * dy produces wild angle deltas. Within this radius of the centre we
@@ -106,9 +112,13 @@ tp_circular_scroll_init(struct tp_dispatch *tp, struct evdev_device *device)
 	tp->scroll.circular.center.y =
 		(device->abs.absinfo_y->maximum + device->abs.absinfo_y->minimum) / 2;
 
-	/* Convert the 8mm ring width into device units by asking the
-	 * evdev helper for a vector from (0,0) to (RING_WIDTH,RING_WIDTH) mm
-	 * and taking the magnitude along one axis. */
+	/* Convert the edge margin and the ring width to device units.
+	 * Use the X component of a vector from (0,0) to (mm,mm). */
+	struct phys_coords margin_mm = {
+		.x = CIRCULAR_SCROLL_EDGE_MARGIN_MM,
+		.y = CIRCULAR_SCROLL_EDGE_MARGIN_MM,
+	};
+	struct device_coords margin = evdev_device_mm_to_units(device, &margin_mm);
 	struct phys_coords ring_mm = {
 		.x = CIRCULAR_SCROLL_RING_WIDTH_MM,
 		.y = CIRCULAR_SCROLL_RING_WIDTH_MM,
@@ -120,18 +130,17 @@ tp_circular_scroll_init(struct tp_dispatch *tp, struct evdev_device *device)
 	int32_t radius_y =
 		(device->abs.absinfo_y->maximum - device->abs.absinfo_y->minimum) / 2;
 	int32_t radius = min(radius_x, radius_y);
-	int32_t inner_radius = max(radius - ring_offset.x, radius / 2);
+	/* The largest radius the device can report for a finger center. */
+	int32_t reachable_radius = max(radius - margin.x, radius / 2);
+	int32_t inner_radius = max(reachable_radius - ring_offset.x, radius / 2);
 
 	tp->scroll.circular.ring_threshold_sq = inner_radius * inner_radius;
 
-	/* Reference radius for the "virtual scroll wheel" model: the middle
-	 * of the ring zone. The scroll signal we emit is the arc length on a
-	 * circle of this radius, not the arc on the finger's actual (varying)
-	 * path. Using a fixed reference keeps scroll angle-based: same
-	 * angular rotation produces the same scroll regardless of where
-	 * within the ring the finger currently sits, preserving the
-	 * "rotate tighter near the centre to scroll faster" feel. */
-	int32_t ring_ref_radius = (radius + inner_radius) / 2;
+	/* Reference radius of the virtual scroll wheel: the middle of the
+	 * reachable ring. The scroll value is the arc length on a circle
+	 * of this radius, not on the path of the finger. Thus the same
+	 * rotation gives the same scroll at each position in the ring. */
+	int32_t ring_ref_radius = (reachable_radius + inner_radius) / 2;
 	tp->scroll.circular.ring_reference_radius = ring_ref_radius;
 
 	/* Convert the dead-zone radius to device units the same way as

@@ -1460,6 +1460,93 @@ START_TEST(touchpad_circular_scroll_method_change)
 }
 END_TEST
 
+/* Distance from the center to the inner edge of the ring, in percent
+ * of the axis. Same geometry as tp_circular_scroll_init(): the 8mm ring
+ * starts 5mm inside the axis edge. The inner disc is at least half the
+ * radius. */
+static double
+touchpad_circular_scroll_ring_inner_pct(struct litest_device *dev)
+{
+	const struct input_absinfo *abs = libevdev_get_abs_info(dev->evdev, ABS_X);
+	int range = abs->maximum - abs->minimum;
+	int radius = range / 2;
+	int margin = 5 * abs->resolution;
+	int ring = 8 * abs->resolution;
+	int reachable = max(radius - margin, radius / 2);
+	int inner = max(reachable - ring, radius / 2);
+
+	return 100.0 * inner / range;
+}
+
+/* Drain the queue and count scroll and motion events. Set *nstops to
+ * the number of zero scroll events. Set *last_scroll to the value of
+ * the last vertical scroll event, or NAN. */
+static void
+touchpad_circular_scroll_count_events(struct libinput *li,
+				      int *nscroll,
+				      int *nmotion,
+				      int *nstops,
+				      double *last_scroll)
+{
+	struct libinput_event *event;
+
+	*nscroll = *nmotion = *nstops = 0;
+	*last_scroll = NAN;
+
+	libinput_dispatch(li);
+	while ((event = libinput_get_event(li)) != NULL) {
+		enum libinput_event_type type = libinput_event_get_type(event);
+
+		if (type == LIBINPUT_EVENT_POINTER_SCROLL_FINGER) {
+			struct libinput_event_pointer *p =
+				libinput_event_get_pointer_event(event);
+			double v = libinput_event_pointer_get_scroll_value(
+				p,
+				LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
+			(*nscroll)++;
+			if (v == 0.0)
+				(*nstops)++;
+			*last_scroll = v;
+		} else if (type == LIBINPUT_EVENT_POINTER_MOTION) {
+			(*nmotion)++;
+		}
+		libinput_event_destroy(event);
+	}
+}
+
+START_TEST(touchpad_circular_scroll_ring_reachable)
+{
+	struct litest_device *dev = litest_current_device();
+	struct libinput *li = dev->libinput;
+	double inner = touchpad_circular_scroll_ring_inner_pct(dev);
+	int nscroll, nmotion, nstops;
+	double last;
+
+	litest_enable_circular_scroll(dev);
+	litest_drain_events(li);
+
+	/* A touch just outside the inner edge of the ring must scroll.
+	 * This position is inside the area a finger can reach. */
+	litest_touch_down(dev, 0, 50 + inner + 1, 50);
+	litest_touch_move_to(dev, 0, 50 + inner + 1, 50, 50, 50 + inner + 1, 10);
+	litest_touch_up(dev, 0);
+
+	touchpad_circular_scroll_count_events(li, &nscroll, &nmotion, &nstops, &last);
+	litest_assert_int_gt(nscroll, 1);
+	litest_assert_int_eq(nmotion, 0);
+	litest_drain_events(li);
+
+	/* A touch just inside the inner edge is a pointer touch. */
+	litest_touch_down(dev, 0, 50 + inner - 2, 50);
+	litest_touch_move_to(dev, 0, 50 + inner - 2, 50, 50, 50 + inner - 2, 10);
+	litest_touch_up(dev, 0);
+
+	touchpad_circular_scroll_count_events(li, &nscroll, &nmotion, &nstops, &last);
+	litest_assert_int_eq(nscroll, 0);
+	litest_assert_int_gt(nmotion, 0);
+}
+END_TEST
+
 static bool
 touchpad_has_top_palm_detect_size(struct litest_device *dev)
 {
@@ -7777,6 +7864,7 @@ TEST_COLLECTION(touchpad)
 	}
 	litest_add(touchpad_circular_scroll_dead_zone, LITEST_CIRCULAR_TOUCHPAD, LITEST_ANY);
 	litest_add(touchpad_circular_scroll_method_change, LITEST_CIRCULAR_TOUCHPAD, LITEST_ANY);
+	litest_add(touchpad_circular_scroll_ring_reachable, LITEST_CIRCULAR_TOUCHPAD, LITEST_ANY);
 
 	litest_add(touchpad_left_handed, LITEST_TOUCHPAD|LITEST_BUTTON, LITEST_CLICKPAD);
 	litest_add_for_device(touchpad_left_handed_appletouch, LITEST_APPLETOUCH);
