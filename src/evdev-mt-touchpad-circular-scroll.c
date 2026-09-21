@@ -98,6 +98,7 @@ tp_circular_scroll_reset_touch(struct tp_touch *t)
 	/* NAN signals "no valid baseline angle"; the next frame in
 	 * RING state will set a fresh baseline without emitting. */
 	t->scroll.circular.prev_angle = NAN;
+	t->scroll.circular.scrolling = false;
 }
 
 void
@@ -294,6 +295,7 @@ tp_circular_scroll_post_events(struct tp_dispatch *tp, usec_t time)
 					 time,
 					 bit(LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL),
 					 &normalized);
+		t->scroll.circular.scrolling = true;
 	}
 
 	/* Return 0: we don't own the whole frame. Pointer motion for
@@ -313,13 +315,19 @@ tp_circular_scroll_stop_events(struct tp_dispatch *tp, usec_t time)
 		return;
 
 	tp_for_each_touch(tp, t) {
-		if (t->scroll.circular.state == CIRCULAR_SCROLL_TOUCH_STATE_RING) {
-			evdev_notify_axis_finger(
-				tp->device,
-				time,
-				bit(LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL),
-				&zero);
-		}
+		/* Stop only a touch that has sent scroll events. A ring
+		 * touch that has not scrolled yet must keep its zone. The
+		 * zone is set only on TOUCH_BEGIN. A reset here makes the
+		 * touch a pointer touch for its full lifetime. This occurs
+		 * while tap-to-click holds back the first frames. Edge
+		 * scroll uses the same rule. */
+		if (!t->scroll.circular.scrolling)
+			continue;
+
+		evdev_notify_axis_finger(tp->device,
+					 time,
+					 bit(LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL),
+					 &zero);
 		tp_circular_scroll_reset_touch(t);
 	}
 }

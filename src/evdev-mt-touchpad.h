@@ -275,6 +275,7 @@ struct tp_touch {
 		struct {
 			enum tp_circular_scroll_touch_state state;
 			double prev_angle; /* radians, from center */
+			bool scrolling; /* true after the first scroll event */
 		} circular;
 	} scroll;
 

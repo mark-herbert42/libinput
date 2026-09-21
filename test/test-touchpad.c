@@ -1547,6 +1547,30 @@ START_TEST(touchpad_circular_scroll_ring_reachable)
 }
 END_TEST
 
+START_TEST(touchpad_circular_scroll_tap_enabled)
+{
+	struct litest_device *dev = litest_current_device();
+	struct libinput *li = dev->libinput;
+	int nscroll, nmotion, nstops;
+	double last;
+
+	litest_enable_circular_scroll(dev);
+	litest_enable_tap(dev->libinput_device);
+	litest_drain_events(li);
+
+	/* Tap-to-click holds back the first frames of a touch and stops
+	 * the scroll methods. This must not remove the zone of a ring
+	 * touch that has not scrolled yet. */
+	litest_touch_down(dev, 0, 90, 50);
+	litest_touch_move_to(dev, 0, 90, 50, 50, 90, 10);
+	litest_touch_up(dev, 0);
+
+	touchpad_circular_scroll_count_events(li, &nscroll, &nmotion, &nstops, &last);
+	litest_assert_int_gt(nscroll, 1);
+	litest_assert_int_eq(nmotion, 0);
+}
+END_TEST
+
 static bool
 touchpad_has_top_palm_detect_size(struct litest_device *dev)
 {
@@ -7865,6 +7889,7 @@ TEST_COLLECTION(touchpad)
 	litest_add(touchpad_circular_scroll_dead_zone, LITEST_CIRCULAR_TOUCHPAD, LITEST_ANY);
 	litest_add(touchpad_circular_scroll_method_change, LITEST_CIRCULAR_TOUCHPAD, LITEST_ANY);
 	litest_add(touchpad_circular_scroll_ring_reachable, LITEST_CIRCULAR_TOUCHPAD, LITEST_ANY);
+	litest_add(touchpad_circular_scroll_tap_enabled, LITEST_CIRCULAR_TOUCHPAD, LITEST_ANY);
 
 	litest_add(touchpad_left_handed, LITEST_TOUCHPAD|LITEST_BUTTON, LITEST_CLICKPAD);
 	litest_add_for_device(touchpad_left_handed_appletouch, LITEST_APPLETOUCH);
