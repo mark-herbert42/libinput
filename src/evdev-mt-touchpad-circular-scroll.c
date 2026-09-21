@@ -207,6 +207,17 @@ tp_circular_scroll_handle_state(struct tp_dispatch *tp, usec_t time)
 			break;
 		case TOUCH_MAYBE_END:
 		case TOUCH_END:
+			/* Send the scroll stop event. Clients use it to
+			 * end kinetic scroll and overscroll. Two-finger
+			 * and edge scroll send it too. */
+			if (t->scroll.circular.scrolling) {
+				const struct normalized_coords zero = { 0.0, 0.0 };
+				evdev_notify_axis_finger(
+					tp->device,
+					time,
+					bit(LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL),
+					&zero);
+			}
 			tp_circular_scroll_reset_touch(t);
 			break;
 		}

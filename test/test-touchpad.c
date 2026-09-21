@@ -1547,6 +1547,39 @@ START_TEST(touchpad_circular_scroll_ring_reachable)
 }
 END_TEST
 
+START_TEST(touchpad_circular_scroll_stop_event)
+{
+	struct litest_device *dev = litest_current_device();
+	struct libinput *li = dev->libinput;
+	int nscroll, nmotion, nstops;
+	double last;
+
+	litest_enable_circular_scroll(dev);
+	litest_drain_events(li);
+
+	litest_touch_down(dev, 0, 90, 50);
+	litest_touch_move_to(dev, 0, 90, 50, 50, 90, 10);
+	litest_touch_up(dev, 0);
+
+	/* When a scrolling finger lifts, the last event must be one
+	 * zero scroll event. Clients use it to end kinetic scroll. */
+	touchpad_circular_scroll_count_events(li, &nscroll, &nmotion, &nstops, &last);
+	litest_assert_int_gt(nscroll, 1);
+	litest_assert_int_eq(nstops, 1);
+	litest_assert_double_eq(last, 0.0);
+	litest_drain_events(li);
+
+	/* A radial drag on the ring does not scroll. It must not send
+	 * a stop event. */
+	litest_touch_down(dev, 0, 90, 50);
+	litest_touch_move_to(dev, 0, 90, 50, 75, 50, 10);
+	litest_touch_up(dev, 0);
+
+	touchpad_circular_scroll_count_events(li, &nscroll, &nmotion, &nstops, &last);
+	litest_assert_int_eq(nscroll, 0);
+}
+END_TEST
+
 START_TEST(touchpad_circular_scroll_tap_enabled)
 {
 	struct litest_device *dev = litest_current_device();
@@ -1568,6 +1601,7 @@ START_TEST(touchpad_circular_scroll_tap_enabled)
 	touchpad_circular_scroll_count_events(li, &nscroll, &nmotion, &nstops, &last);
 	litest_assert_int_gt(nscroll, 1);
 	litest_assert_int_eq(nmotion, 0);
+	litest_assert_int_eq(nstops, 1);
 }
 END_TEST
 
@@ -7889,6 +7923,7 @@ TEST_COLLECTION(touchpad)
 	litest_add(touchpad_circular_scroll_dead_zone, LITEST_CIRCULAR_TOUCHPAD, LITEST_ANY);
 	litest_add(touchpad_circular_scroll_method_change, LITEST_CIRCULAR_TOUCHPAD, LITEST_ANY);
 	litest_add(touchpad_circular_scroll_ring_reachable, LITEST_CIRCULAR_TOUCHPAD, LITEST_ANY);
+	litest_add(touchpad_circular_scroll_stop_event, LITEST_CIRCULAR_TOUCHPAD, LITEST_ANY);
 	litest_add(touchpad_circular_scroll_tap_enabled, LITEST_CIRCULAR_TOUCHPAD, LITEST_ANY);
 
 	litest_add(touchpad_left_handed, LITEST_TOUCHPAD|LITEST_BUTTON, LITEST_CLICKPAD);
