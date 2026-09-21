@@ -915,6 +915,7 @@ if get_option('tests')
 		'test/litest-device-nexus4-touch-screen.c',
 		'test/litest-device-magic-trackpad.c',
 		'test/litest-device-panasonic-cf-sv1.c',
+		'test/litest-device-panasonic-cf-fv1.c',
 		'test/litest-device-mouse.c',
 		'test/litest-device-mouse-wheel-tilt.c',
 		'test/litest-device-mouse-wheel-hires-disabled.c',
