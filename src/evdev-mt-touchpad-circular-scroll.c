@@ -191,8 +191,35 @@ tp_circular_scroll_handle_state(struct tp_dispatch *tp, usec_t time)
 			 * prevents accidental mode-flipping mid-gesture
 			 * and lets the inner disc be used as a normal
 			 * pointer area even when the finger strays
-			 * briefly into the ring. */
-			if (tp_circular_scroll_point_on_ring(tp, &t->point)) {
+			 * briefly into the ring.
+			 *
+			 * Circular scroll is a one-finger gesture. A touch
+			 * that starts while other fingers are down is part
+			 * of a multi-finger gesture. Send it to the gesture
+			 * code, also when it is on the ring. On a round pad
+			 * the outer fingers of a swipe are always on the
+			 * ring. Also release a ring touch that has not
+			 * scrolled yet. The fingers of one gesture usually
+			 * start in different frames. */
+			if (tp->nfingers_down > 1) {
+				struct tp_touch *other;
+
+				tp_for_each_touch(tp, other) {
+					if (other != t &&
+					    other->scroll.circular.state ==
+						    CIRCULAR_SCROLL_TOUCH_STATE_RING &&
+					    !other->scroll.circular.scrolling) {
+						evdev_log_debug(
+							tp->device,
+							"circular-scroll: touch %d released to multi-finger gesture\n",
+							other->index);
+						other->scroll.circular.state =
+							CIRCULAR_SCROLL_TOUCH_STATE_INNER;
+					}
+				}
+				t->scroll.circular.state =
+					CIRCULAR_SCROLL_TOUCH_STATE_INNER;
+			} else if (tp_circular_scroll_point_on_ring(tp, &t->point)) {
 				t->scroll.circular.state =
 					CIRCULAR_SCROLL_TOUCH_STATE_RING;
 				t->scroll.circular.prev_angle =

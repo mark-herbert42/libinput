@@ -1580,6 +1580,44 @@ START_TEST(touchpad_circular_scroll_stop_event)
 }
 END_TEST
 
+START_TEST(touchpad_circular_scroll_multifinger)
+{
+	struct litest_device *dev = litest_current_device();
+	struct libinput *li = dev->libinput;
+	int nscroll, nmotion, nstops;
+	double last;
+
+	litest_enable_circular_scroll(dev);
+	litest_drain_events(li);
+
+	/* Circular scroll is a one-finger gesture. Two fingers on the
+	 * ring must go to the gesture code, also when they start in
+	 * different frames. Neither finger must scroll. */
+	litest_touch_down(dev, 0, 90, 50);
+	litest_touch_down(dev, 1, 50, 90);
+	litest_touch_move_two_touches(dev, 90, 50, 50, 90, -20, -20, 10);
+	litest_touch_up(dev, 0);
+	litest_touch_up(dev, 1);
+
+	touchpad_circular_scroll_count_events(li, &nscroll, &nmotion, &nstops, &last);
+	litest_assert_int_eq(nscroll, 0);
+	litest_drain_events(li);
+
+	/* A ring touch that scrolls continues to scroll when a second
+	 * finger starts on the inner disc. */
+	litest_touch_down(dev, 0, 90, 50);
+	litest_touch_move_to(dev, 0, 90, 50, 70, 70, 5);
+	litest_touch_down(dev, 1, 50, 50);
+	litest_touch_move_to(dev, 0, 70, 70, 50, 90, 5);
+	litest_touch_up(dev, 0);
+	litest_touch_up(dev, 1);
+
+	touchpad_circular_scroll_count_events(li, &nscroll, &nmotion, &nstops, &last);
+	litest_assert_int_gt(nscroll, 5);
+	litest_assert_int_eq(nstops, 1);
+}
+END_TEST
+
 START_TEST(touchpad_circular_scroll_tap_enabled)
 {
 	struct litest_device *dev = litest_current_device();
@@ -7925,6 +7963,7 @@ TEST_COLLECTION(touchpad)
 	litest_add(touchpad_circular_scroll_ring_reachable, LITEST_CIRCULAR_TOUCHPAD, LITEST_ANY);
 	litest_add(touchpad_circular_scroll_stop_event, LITEST_CIRCULAR_TOUCHPAD, LITEST_ANY);
 	litest_add(touchpad_circular_scroll_tap_enabled, LITEST_CIRCULAR_TOUCHPAD, LITEST_ANY);
+	litest_add(touchpad_circular_scroll_multifinger, LITEST_CIRCULAR_TOUCHPAD, LITEST_ANY);
 
 	litest_add(touchpad_left_handed, LITEST_TOUCHPAD|LITEST_BUTTON, LITEST_CLICKPAD);
 	litest_add_for_device(touchpad_left_handed_appletouch, LITEST_APPLETOUCH);
