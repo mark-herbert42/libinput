@@ -164,6 +164,11 @@ struct window {
 	} hold;
 
 	struct {
+		int nfingers;
+		bool active;
+	} tap;
+
+	struct {
 		double x, y;
 		double x_in, y_in;
 		double x_down, y_down;
@@ -606,6 +611,20 @@ draw_gestures(struct window *w, cairo_t *cr)
 		cairo_set_source_rgba(cr, 0, 0, 0, hold_alpha);
 		cairo_arc(cr, 0, 0, 20 * i, 0, 2 * M_PI);
 		cairo_stroke(cr);
+	}
+
+	/* 4fg tap uses the same rings but blue */
+	for (int i = 4; w->tap.active && i > 0; i--) { /* 4 fg max */
+		double r, g, b, tap_alpha;
+
+		r = .2;
+		g = .2;
+		b = .4 + .2 * (i % 2);
+		tap_alpha = i <= w->tap.nfingers ? 1 : .5;
+
+		cairo_set_source_rgba(cr, r, g, b, tap_alpha);
+		cairo_arc(cr, 0, 0, 20 * i, 0, 2 * M_PI);
+		cairo_fill(cr);
 	}
 
 	cairo_restore(cr);
@@ -1672,6 +1691,40 @@ handle_event_hold(struct libinput_event *ev, struct window *w)
 	}
 }
 
+static gboolean
+undo_tap(gpointer data)
+{
+	struct window *w = data;
+
+	w->tap.active = false;
+	gtk_widget_queue_draw(w->area);
+
+	return G_SOURCE_REMOVE;
+}
+
+static void
+handle_event_tap(struct libinput_event *ev, struct window *w)
+{
+	struct libinput_event_gesture *g = libinput_event_get_gesture_event(ev);
+	int nfingers;
+
+	nfingers = libinput_event_gesture_get_finger_count(g);
+
+	switch (libinput_event_get_type(ev)) {
+	case LIBINPUT_EVENT_GESTURE_TAP_BEGIN:
+		w->tap.nfingers = nfingers;
+		w->tap.active = true;
+		g_timeout_add(75, undo_tap, w);
+		break;
+	case LIBINPUT_EVENT_GESTURE_TAP_END:
+		/* active is handled by a timer because we get begin/end
+		 * at effectively the same time */
+		break;
+	default:
+		abort();
+	}
+}
+
 static void
 handle_event_tablet(struct libinput_event *ev, struct window *w)
 {
@@ -1812,6 +1865,7 @@ handle_event_libinput(GIOChannel *source, GIOCondition condition, gpointer data)
 	tools_dispatch(li);
 
 	while ((ev = libinput_get_event(li))) {
+
 		switch (libinput_event_get_type(ev)) {
 		case LIBINPUT_EVENT_NONE:
 			abort();
@@ -1864,6 +1918,10 @@ handle_event_libinput(GIOChannel *source, GIOCondition condition, gpointer data)
 		case LIBINPUT_EVENT_GESTURE_HOLD_BEGIN:
 		case LIBINPUT_EVENT_GESTURE_HOLD_END:
 			handle_event_hold(ev, w);
+			break;
+		case LIBINPUT_EVENT_GESTURE_TAP_BEGIN:
+		case LIBINPUT_EVENT_GESTURE_TAP_END:
+			handle_event_tap(ev, w);
 			break;
 		case LIBINPUT_EVENT_TABLET_TOOL_AXIS:
 		case LIBINPUT_EVENT_TABLET_TOOL_PROXIMITY:

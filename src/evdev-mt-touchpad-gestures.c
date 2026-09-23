@@ -713,11 +713,12 @@ tp_gesture_handle_event_on_state_hold(struct tp_dispatch *tp,
 		tp->gesture.state = GESTURE_STATE_3FG_DRAG_OR_SWIPE_START;
 		break;
 	case GESTURE_EVENT_HOLD_TIMEOUT:
-	case GESTURE_EVENT_TAP_TIMEOUT:
 	case GESTURE_EVENT_FINGER_DETECTED:
 	case GESTURE_EVENT_3FG_DRAG_OR_SWIPE_TIMEOUT:
 	case GESTURE_EVENT_3FG_DRAG_RELEASE_TIMEOUT:
 		log_gesture_bug(tp, event);
+		break;
+	case GESTURE_EVENT_TAP_TIMEOUT:
 		break;
 	}
 }

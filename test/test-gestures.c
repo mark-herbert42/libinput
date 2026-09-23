@@ -1786,7 +1786,7 @@ START_TEST(gestures_3fg_drag_lock_resume_3fg_release_no_motion)
 	bool wait_for_timeout = litest_test_param_get_bool(test_env->params, "wait");
 
 	/* tap-enabled for 4fg finger count doesn't make a difference */
-	bool expect_tap = finger_count <= 3 && tap_enabled && !wait_for_timeout;
+	bool expect_tap = tap_enabled && !wait_for_timeout;
 
 	if (litest_slot_count(dev) < 3)
 		return LITEST_NOT_APPLICABLE;
@@ -1859,12 +1859,21 @@ START_TEST(gestures_3fg_drag_lock_resume_3fg_release_no_motion)
 					   BTN_LEFT,
 					   LIBINPUT_BUTTON_STATE_RELEASED);
 		litest_checkpoint("Expecting 3fg tap");
-		litest_assert_button_event(li,
-					   BTN_MIDDLE,
-					   LIBINPUT_BUTTON_STATE_PRESSED);
-		litest_assert_button_event(li,
-					   BTN_MIDDLE,
-					   LIBINPUT_BUTTON_STATE_RELEASED);
+		if (finger_count < 4) {
+			litest_assert_button_event(li,
+						   BTN_MIDDLE,
+						   LIBINPUT_BUTTON_STATE_PRESSED);
+			litest_assert_button_event(li,
+						   BTN_MIDDLE,
+						   LIBINPUT_BUTTON_STATE_RELEASED);
+		} else {
+			litest_assert_gesture_event(li,
+						    LIBINPUT_EVENT_GESTURE_TAP_BEGIN,
+						    finger_count);
+			litest_assert_gesture_event(li,
+						    LIBINPUT_EVENT_GESTURE_TAP_END,
+						    finger_count);
+		}
 	}
 
 	litest_assert_empty_queue(li);
