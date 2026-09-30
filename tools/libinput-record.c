@@ -1755,8 +1755,10 @@ print_udev_properties(struct record_device *dev)
 
 		key = udev_list_entry_get_name(entry);
 
-		if (strstartswith(key, "ID_INPUT") || strstartswith(key, "HID_BPF") ||
-		    strstartswith(key, "LIBINPUT") || strstartswith(key, "EVDEV_ABS") ||
+		if (strstartswith(key, "ID_INPUT") ||
+		    strstartswith(key, "ID_INTEGRATION") ||
+		    strstartswith(key, "HID_BPF") || strstartswith(key, "LIBINPUT") ||
+		    strstartswith(key, "EVDEV_ABS") ||
 		    strstartswith(key, "MOUSE_DPI") ||
 		    strstartswith(key, "POINTINGSTICK_")) {
 			value = udev_list_entry_get_value(entry);
