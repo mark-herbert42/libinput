@@ -512,7 +512,9 @@ pkgconfig.generate(
 	]
 )
 
-git_version_h = vcs_tag(command : ['git', 'describe'],
+# only describe libinput's own repository, not one it is unpacked inside
+git_dir = '--git-dir=' + (meson.project_source_root() / '.git')
+git_version_h = vcs_tag(command : ['git', git_dir, 'describe'],
 			fallback : 'unknown',
 			input : 'src/libinput-git-version.h.in',
 			output :'libinput-git-version.h')

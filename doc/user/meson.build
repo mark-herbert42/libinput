@@ -15,7 +15,7 @@ sphinx_config.set('PROJECT_VERSION', meson.project_version())
 sphinx_config.set('BUILDDIR', meson.current_build_dir())
 sphinx_config.set('HTTP_DOC_LINK', doc_url)
 
-git_version_page = vcs_tag(command : ['git', 'log', '-1', '--format=%H'],
+git_version_page = vcs_tag(command : ['git', git_dir, 'log', '-1', '--format=%H'],
 			   fallback : 'unknown',
 			   input : 'git_version.py.in',
 			   output : 'git_version.py',

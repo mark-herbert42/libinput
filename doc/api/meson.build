@@ -9,7 +9,7 @@ if not dot.found()
 	error('Program "dot" not found or not executable. Try building with -Ddocumentation=false')
 endif
 
-mainpage = vcs_tag(command : ['git', 'log', '-1', '--format=%h'],
+mainpage = vcs_tag(command : ['git', git_dir, 'log', '-1', '--format=%h'],
 		 fallback : 'unknown',
 		 input : 'mainpage.dox',
 		 output : 'mainpage.dox',
