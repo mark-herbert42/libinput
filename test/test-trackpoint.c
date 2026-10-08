@@ -81,22 +81,26 @@ START_TEST(trackpoint_scroll)
 
 	litest_drain_events(li);
 
-	litest_button_scroll(dev, BTN_MIDDLE, 1, 6);
+	/* Each litest_button_scroll() sends a single motion event after the
+	 * button-scroll timeout. The new scroll logic absorbs scroll.threshold
+	 * (5) of motion magnitude before emitting, so the dominant axis is
+	 * bumped by 5 here to keep the emitted value matching the assertion. */
+	litest_button_scroll(dev, BTN_MIDDLE, 1, 11);
 	litest_assert_scroll(li,
 			     LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS,
 			     LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL,
 			     6);
-	litest_button_scroll(dev, BTN_MIDDLE, 1, -7);
+	litest_button_scroll(dev, BTN_MIDDLE, 1, -12);
 	litest_assert_scroll(li,
 			     LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS,
 			     LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL,
 			     -7);
-	litest_button_scroll(dev, BTN_MIDDLE, 8, 1);
+	litest_button_scroll(dev, BTN_MIDDLE, 13, 1);
 	litest_assert_scroll(li,
 			     LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS,
 			     LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL,
 			     8);
-	litest_button_scroll(dev, BTN_MIDDLE, -9, 1);
+	litest_button_scroll(dev, BTN_MIDDLE, -14, 1);
 	litest_assert_scroll(li,
 			     LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS,
 			     LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL,

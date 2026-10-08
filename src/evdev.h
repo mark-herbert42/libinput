@@ -228,10 +228,20 @@ struct evdev_device {
 		/* Checks if buttons are down and commits the setting */
 		void (*change_scroll_method)(struct evdev_device *device);
 		enum evdev_button_scroll_state button_scroll_state;
+		/* Minimum accumulated motion magnitude before any scroll
+		 * event is emitted. Filters out small jitter on press. */
 		double threshold;
+		/* Sets the perpendicular distance from an axis line at
+		 * which the soft axis-lock in evdev_post_scroll() breaks
+		 * and biaxial scrolling is allowed; the actual half-margin
+		 * used is direction_lock_threshold / 2. */
 		double direction_lock_threshold;
 		uint32_t direction;
-		struct normalized_coords buildup;
+
+		/* Scroll axis-locking state. See evdev_post_scroll(). */
+		struct normalized_coords accumulator;
+		int antijitter_axes;
+		bool exceeded_threshold;
 
 		struct libinput_device_config_natural_scroll config_natural;
 		/* set during device init if we want natural scrolling,

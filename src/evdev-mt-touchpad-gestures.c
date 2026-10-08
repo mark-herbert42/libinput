@@ -323,21 +323,6 @@ tp_gesture_init_pinch(struct tp_dispatch *tp)
 }
 
 static void
-tp_gesture_set_scroll_buildup(struct tp_dispatch *tp)
-{
-	struct device_float_coords d0, d1;
-	struct device_float_coords average;
-	struct tp_touch *first = tp->gesture.touches[0],
-			*second = tp->gesture.touches[1];
-
-	d0 = device_delta(first->point, first->gesture.initial);
-	d1 = device_delta(second->point, second->gesture.initial);
-
-	average = device_float_average(d0, d1);
-	tp->device->scroll.buildup = tp_normalize_delta(tp, average);
-}
-
-static void
 tp_gesture_apply_scroll_constraints(struct tp_dispatch *tp,
 				    struct device_float_coords *raw,
 				    struct normalized_coords *delta,
@@ -638,7 +623,6 @@ tp_gesture_handle_event_on_state_unknown(struct tp_dispatch *tp,
 		break;
 	case GESTURE_EVENT_SCROLL_START:
 		libinput_timer_cancel(&tp->gesture.hold_timer);
-		tp_gesture_set_scroll_buildup(tp);
 		tp->gesture.state = GESTURE_STATE_SCROLL_START;
 		break;
 	case GESTURE_EVENT_SWIPE_START:
@@ -694,7 +678,6 @@ tp_gesture_handle_event_on_state_hold(struct tp_dispatch *tp,
 		tp->gesture.state = GESTURE_STATE_POINTER_MOTION;
 		break;
 	case GESTURE_EVENT_SCROLL_START:
-		tp_gesture_set_scroll_buildup(tp);
 		tp_gesture_cancel(tp, time);
 		tp->gesture.state = GESTURE_STATE_SCROLL_START;
 		break;

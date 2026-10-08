@@ -56,6 +56,12 @@
 #define DEFAULT_BUTTON_SCROLL_TIMEOUT usec_from_millis(200)
 #define SCROLL_BUTTON_LOCK_GRACE_TIMEOUT usec_from_millis(500)
 
+/* the angle by which a scroll button-drag delta is tilted towards the axis by the axis
+ * magnetism effect */
+#define SCROLL_DELTA_TILT_ANGLE (M_PI * 0.24)
+/* the distance at which it decides which axis it's on for the antijitter measure. */
+#define SCROLL_ANTIJITTER_AXIS_DECISION_DISTANCE 5
+
 enum evdev_device_udev_tags {
 	EVDEV_UDEV_TAG_NONE = 0,
 	EVDEV_UDEV_TAG_INPUT = bit(0),
@@ -2375,8 +2381,8 @@ evdev_device_create(struct libinput_seat *seat, struct udev_device *udev_device)
 	/* the log_prefix_name is used as part of a printf format string and
 	 * must not contain % directives, see evdev_log_msg */
 	device->log_prefix_name = str_sanitize(device->devname);
-	device->scroll.threshold = 5.0;                /* Default may be overridden */
-	device->scroll.direction_lock_threshold = 5.0; /* Default may be overridden */
+	device->scroll.threshold = 5.0;                 /* Default may be overridden */
+	device->scroll.direction_lock_threshold = 18.0; /* Default may be overridden */
 	device->scroll.direction = 0;
 	device->scroll.wheel_click_angle = evdev_read_wheel_click_props(device);
 	device->model_flags = evdev_read_model_flags(device);
@@ -2755,95 +2761,263 @@ evdev_device_has_switch(struct evdev_device *device, enum libinput_switch sw)
 	return libevdev_has_event_code(device->evdev, EV_SW, code);
 }
 
-static inline bool
-evdev_is_scrolling(const struct evdev_device *device, enum libinput_pointer_axis axis)
+/* Rotation by the normal vector, `rot`, anticlockwise.
+ * if `rot` isn't a normal, this includes a scale transform, by its magnitude. */
+static inline struct normalized_coords
+v2_rotate(struct normalized_coords rot, struct normalized_coords subject)
 {
-	assert(axis == LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL ||
-	       axis == LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
-
-	return (device->scroll.direction & bit(axis)) != 0;
+	return (struct normalized_coords){
+		rot.x * subject.x - rot.y * subject.y,
+		rot.y * subject.x + rot.x * subject.y,
+	};
 }
 
-static inline void
-evdev_start_scrolling(struct evdev_device *device, enum libinput_pointer_axis axis)
+/* Rotation by the normal vector, `rot`, clockwise.
+ * if `rot` isn't a normal, this includes a scale transform, by its magnitude. */
+static inline struct normalized_coords
+v2_counter_rotate(struct normalized_coords rot, struct normalized_coords subject)
 {
-	assert(axis == LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL ||
-	       axis == LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
-
-	device->scroll.direction |= bit(axis);
+	return (struct normalized_coords){
+		rot.x * subject.x + rot.y * subject.y,
+		-rot.y * subject.x + rot.x * subject.y,
+	};
 }
 
+static inline struct normalized_coords
+v2_add(struct normalized_coords a, struct normalized_coords b)
+{
+	return (struct normalized_coords){
+		a.x + b.x,
+		a.y + b.y,
+	};
+}
+
+static inline struct normalized_coords
+v2_subtract(struct normalized_coords a, struct normalized_coords b)
+{
+	return (struct normalized_coords){
+		a.x - b.x,
+		a.y - b.y,
+	};
+}
+
+static inline double
+v2_magnitude(struct normalized_coords v)
+{
+	return hypot(v.x, v.y);
+}
+
+/* Rotates the delta from point acc towards the given axis/angle, `dir`.
+ * The tilt is scaled by cos²(angle between delta and the axis): axis-aligned
+ * motion gets the full pull, and motion turning perpendicular is left almost
+ * free, so an intentional outward stroke isn't fought.
+ * The math runs in dir's frame and the result is rotated back.
+ * Returns the world-frame scroll delta to emit.
+ * It actually behaves the same for forwards or backwards pointing dir. */
+static struct normalized_coords
+tilt_delta_for_orientation(struct normalized_coords pos,
+			   struct normalized_coords delta,
+			   struct normalized_coords dir,
+			   double max_tilt_angle)
+{
+	struct normalized_coords pos_rel = v2_counter_rotate(dir, pos);
+	struct normalized_coords delta_rel = v2_counter_rotate(dir, delta);
+	/* we modulate the tilt angle so that it's at its peak only when the delta is
+	 * aligned with the axis. Moving towards the axis need not be accelerated, and
+	 * moving directly away tends to be intentional and shouldn't be impeded. */
+	double dl = v2_magnitude(delta_rel);
+	double alignedness = (dl > 0) ? delta_rel.x / dl : 0;
+	/* there's no firm logic to squaring it here, it just feels more beautiful, and
+	 * seems to accentuate the effect to the point where it makes diagonal starts
+	 * more comfortable and reliable. */
+	double tilt_angle = max_tilt_angle * fabs(alignedness) * fabs(alignedness);
+	struct normalized_coords nextpos_local_tentative_plus_untilted =
+		v2_add(pos_rel, delta_rel);
+	struct normalized_coords flipped_tilt = {
+		cos(tilt_angle),
+		/* this ensures that it tilts dr in whichever rotational direction
+		   points towards the y=0 */
+		sin(tilt_angle) *
+			(nextpos_local_tentative_plus_untilted.y <= 0 ? -1.0 : 1.0) *
+			-(delta_rel.x >= 0 ? 1.0 : -1.0),
+	};
+	struct normalized_coords tilted_dr = v2_rotate(flipped_tilt, delta_rel);
+	struct normalized_coords nextpos_local_tentative_plus_tilted =
+		v2_add(pos_rel, tilted_dr);
+	bool crosses_line = nextpos_local_tentative_plus_untilted.y *
+				    nextpos_local_tentative_plus_tilted.y <=
+			    0;
+	struct normalized_coords nextpos_local;
+	if (crosses_line) {
+		/* then we'll angle it just so that it lands on 0, while preserves the
+		 * delta's length. The following is equivalent to this formula, but we
+		 * do something a bit more careful to make sure we definitely can't sqrt
+		 * a negative. In theory that should never happen, but we should just
+		 * code to make sure it can't */
+		/* tl_x = tr.x + dir_sign * sqrt(dl*dl - tr.y*tr.y) */
+		double sqrand = dl * dl - pos_rel.y * pos_rel.y;
+		double tl_x = sqrand >= 0
+				      ? pos_rel.x + ((delta_rel.x >= 0) ? 1.0 : -1.0) *
+							    sqrt(sqrand)
+				      : 0;
+		nextpos_local = (struct normalized_coords){ tl_x, 0 };
+	} else {
+		nextpos_local = nextpos_local_tentative_plus_tilted;
+	}
+	struct normalized_coords nextpos = v2_rotate(dir, nextpos_local);
+	return v2_subtract(nextpos, pos);
+}
+
+/* moves the indicated axis towards 0 by antijitter_margin. */
+static inline struct normalized_coords
+deadband_axis(bool vertical, struct normalized_coords v, double antijitter_margin)
+{
+	return vertical ? (struct
+			   normalized_coords){ v.x,
+					       v.y > 0.0
+						       ? fmax(0.0,
+							      v.y - antijitter_margin)
+						       : fmin(0.0,
+							      v.y + antijitter_margin) }
+			: (struct normalized_coords){
+				  v.x > 0.0 ? fmax(0.0, v.x - antijitter_margin)
+					    : fmin(0.0, v.x + antijitter_margin),
+				  v.y
+			  };
+}
+
+/* Suppresses scroll output until accumulated motion exceeds scroll.threshold (a
+ * click-jitter filter), then runs a subtle but effective axis-lock where the delta is
+ * rotated somewhat towards the nearest axis line. If the accumulator moves
+ * scroll.direction_lock_threshold away from either axis line, it breaks out of axis
+ * lock and scrolls freely from then on.
+ */
 void
 evdev_post_scroll(struct evdev_device *device,
 		  usec_t time,
 		  enum libinput_pointer_axis_source source,
 		  const struct normalized_coords *delta)
 {
-	const struct normalized_coords *trigger;
-	struct normalized_coords event;
+	struct normalized_coords *acc = &device->scroll.accumulator;
+	struct normalized_coords delta_post = *delta;
 
-	if (!evdev_is_scrolling(device, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL))
-		device->scroll.buildup.y += delta->y;
-	if (!evdev_is_scrolling(device, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL))
-		device->scroll.buildup.x += delta->x;
-
-	trigger = &device->scroll.buildup;
-
-	/* If we're not scrolling yet, use a distance trigger: moving
-	   past a certain distance starts scrolling */
-	if (!evdev_is_scrolling(device, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL) &&
-	    !evdev_is_scrolling(device, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL)) {
-		if (fabs(trigger->y) >= device->scroll.threshold)
-			evdev_start_scrolling(device,
-					      LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
-		if (fabs(trigger->x) >= device->scroll.threshold)
-			evdev_start_scrolling(device,
-					      LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
-		/* We're already scrolling in one direction. Require some
-		   trigger speed to start scrolling in the other direction */
-	} else if (!evdev_is_scrolling(device, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL)) {
-		if (fabs(delta->y) >= device->scroll.direction_lock_threshold)
-			evdev_start_scrolling(device,
-					      LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
-	} else if (!evdev_is_scrolling(device,
-				       LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL)) {
-		if (fabs(delta->x) >= device->scroll.direction_lock_threshold)
-			evdev_start_scrolling(device,
-					      LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
+	/* activate antijitter bevel once it's clear which axis the scroll is moving
+	 * into */
+	if (device->scroll.antijitter_axes == 0) {
+		if (fabs(acc->x) > fabs(acc->y)) {
+			if (fabs(acc->x) > SCROLL_ANTIJITTER_AXIS_DECISION_DISTANCE) {
+				device->scroll.antijitter_axes |=
+					bit(LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
+			}
+		} else {
+			if (fabs(acc->y) > SCROLL_ANTIJITTER_AXIS_DECISION_DISTANCE) {
+				device->scroll.antijitter_axes |=
+					bit(LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
+			}
+		}
 	}
 
-	event = *delta;
+	if (!device->scroll.exceeded_threshold) {
+		*acc = v2_add(*acc, *delta);
+		double acc_mag = v2_magnitude(*acc);
+		if (acc_mag <= device->scroll.threshold)
+			return;
+		/* take the post-threshold overshoot as the first emitted delta,
+		 * starting axis-lock state from origin so there's no jump on
+		 * engage. */
+		delta_post = *acc;
+		*acc = (struct normalized_coords){ 0.0, 0.0 };
+		device->scroll.exceeded_threshold = true;
+	}
 
-	/* We use the trigger to enable, but the delta from this event for
-	 * the actual scroll movement. Otherwise we get a jump once
-	 * scrolling engages */
-	if (!evdev_is_scrolling(device, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL))
-		event.y = 0.0;
+	struct normalized_coords estimate_next_acc = v2_add(*acc, delta_post);
 
-	if (!evdev_is_scrolling(device, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL))
-		event.x = 0.0;
+	bool is_unlocked = device->scroll.antijitter_axes ==
+			   (bit(LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL) |
+			    bit(LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL));
 
-	if (!normalized_is_zero(event)) {
-		uint32_t axes = device->scroll.direction;
-
-		if (event.y == 0.0)
-			axes &= ~bit(LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
-		if (event.x == 0.0)
-			axes &= ~bit(LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
-
-		switch (source) {
-		case LIBINPUT_POINTER_AXIS_SOURCE_FINGER:
-			evdev_notify_axis_finger(device, time, axes, &event);
-			break;
-		case LIBINPUT_POINTER_AXIS_SOURCE_CONTINUOUS:
-			evdev_notify_axis_continous(device, time, axes, &event);
-			break;
-		default:
-			evdev_log_bug_libinput(device,
-					       "Posting invalid scroll source %d\n",
-					       source);
-			break;
+	struct normalized_coords scroll_movement;
+	if ((estimate_next_acc.x == 0 && estimate_next_acc.y == 0) || is_unlocked) {
+		scroll_movement = delta_post;
+	} else if (fabs(estimate_next_acc.x) < fabs(estimate_next_acc.y)) {
+		if (fabs(acc->x) < device->scroll.direction_lock_threshold) {
+			scroll_movement = tilt_delta_for_orientation(
+				*acc,
+				delta_post,
+				(struct normalized_coords){
+					0.0,
+					estimate_next_acc.y < 0 ? -1.0 : 1.0,
+				},
+				SCROLL_DELTA_TILT_ANGLE);
+		} else {
+			device->scroll.antijitter_axes |=
+				bit(LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
+			scroll_movement = delta_post;
 		}
+	} else {
+		if (fabs(acc->y) < device->scroll.direction_lock_threshold) {
+			scroll_movement = tilt_delta_for_orientation(
+				*acc,
+				delta_post,
+				(struct normalized_coords){
+					estimate_next_acc.x < 0 ? -1.0 : 1.0,
+					0.0,
+				},
+				SCROLL_DELTA_TILT_ANGLE);
+		} else {
+			device->scroll.antijitter_axes |=
+				bit(LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
+			scroll_movement = delta_post;
+		}
+	}
+
+	struct normalized_coords prev_acc = *acc;
+	*acc = v2_add(*acc, scroll_movement);
+
+	/* because we often get mouse move events in one pixel increments, and because
+	 * one pixel off-axis move events can't be effectively smoothed away (no matter
+	 * how few of them there are) because they're always perfectly perpendicular to
+	 * the axis even when net mouse movement is mostly aligned,we need to sort of
+	 * ignore one-pixel movements. We do it by moving all points one pixel closer to
+	 * the axes so that movement within that gutter isn't perceived. */
+	bool antijitter_horiz = device->scroll.antijitter_axes &
+				bit(LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
+	bool antijitter_vert = device->scroll.antijitter_axes &
+			       bit(LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
+	struct normalized_coords scroll_event =
+		(antijitter_vert ^ antijitter_horiz)
+			? v2_subtract(deadband_axis(
+					      !antijitter_vert,
+					      *acc,
+					      device->scroll.direction_lock_threshold),
+				      deadband_axis(
+					      !antijitter_vert,
+					      prev_acc,
+					      device->scroll.direction_lock_threshold))
+			: scroll_movement;
+
+	if (scroll_event.x == 0.0 && scroll_event.y == 0.0)
+		return;
+
+	uint32_t axes = 0;
+	if (scroll_event.x != 0.0)
+		axes |= bit(LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
+	if (scroll_event.y != 0.0)
+		axes |= bit(LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
+	device->scroll.direction |= axes;
+
+	switch (source) {
+	case LIBINPUT_POINTER_AXIS_SOURCE_FINGER:
+		evdev_notify_axis_finger(device, time, axes, &scroll_event);
+		break;
+	case LIBINPUT_POINTER_AXIS_SOURCE_CONTINUOUS:
+		evdev_notify_axis_continous(device, time, axes, &scroll_event);
+		break;
+	default:
+		evdev_log_bug_libinput(device,
+				       "Posting invalid scroll source %d\n",
+				       source);
+		break;
 	}
 }
 
@@ -2877,8 +3051,10 @@ evdev_stop_scroll(struct evdev_device *device,
 		}
 	}
 
-	device->scroll.buildup.x = 0;
-	device->scroll.buildup.y = 0;
+	device->scroll.accumulator.x = 0;
+	device->scroll.accumulator.y = 0;
+	device->scroll.exceeded_threshold = false;
+	device->scroll.antijitter_axes = 0;
 	device->scroll.direction = 0;
 }
 
