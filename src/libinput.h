@@ -5080,7 +5080,7 @@ libinput_device_config_tap_get_default_drag_enabled(struct libinput_device *devi
  * implemented for tap-and-drag only, see
  * libinput_device_config_tap_set_multi_finger_drag_enabled()
  *
- * @since 1.31
+ * @since 1.33
  */
 enum libinput_config_multi_finger_drag_state {
 	/**
@@ -5110,7 +5110,7 @@ enum libinput_config_multi_finger_drag_state {
  * @see libinput_device_config_tap_set_multi_finger_drag_enabled
  * @see libinput_device_config_tap_get_default_multi_finger_drag_enabled
  *
- * @since 1.31
+ * @since 1.33
  */
 enum libinput_config_status
 libinput_device_config_tap_set_multi_finger_drag_enabled(
@@ -5131,7 +5131,7 @@ libinput_device_config_tap_set_multi_finger_drag_enabled(
  * @see libinput_device_config_tap_set_multi_finger_drag_enabled
  * @see libinput_device_config_tap_get_default_multi_finger_drag_enabled
  *
- * @since 1.31
+ * @since 1.33
  */
 enum libinput_config_multi_finger_drag_state
 libinput_device_config_tap_get_multi_finger_drag_enabled(
@@ -5152,7 +5152,7 @@ libinput_device_config_tap_get_multi_finger_drag_enabled(
  * @see libinput_device_config_tap_set_multi_finger_drag_enabled
  * @see libinput_device_config_tap_get_multi_finger_drag_enabled
  *
- * @since 1.31
+ * @since 1.33
  */
 enum libinput_config_multi_finger_drag_state
 libinput_device_config_tap_get_default_multi_finger_drag_enabled(

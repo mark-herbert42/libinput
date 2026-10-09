@@ -4239,6 +4239,162 @@ START_TEST(touchpad_multi_finger_drag_config_enabledisable)
 }
 END_TEST
 
+START_TEST(touchpad_multi_finger_drag_disabled)
+{
+	struct litest_device *dev = litest_current_device();
+	struct libinput *li = dev->libinput;
+	int nfingers = litest_test_param_get_i32(test_env->params, "fingers");
+	unsigned int button = 0;
+
+	if (nfingers > litest_slot_count(dev))
+		return LITEST_NOT_APPLICABLE;
+
+	litest_enable_tap(dev->libinput_device);
+
+	litest_enable_tap_drag(dev->libinput_device);
+	litest_disable_multi_finger_tap_drag(dev->libinput_device);
+	litest_disable_hold_gestures(dev->libinput_device);
+
+	switch (nfingers) {
+	case 1:
+		button = BTN_LEFT;
+		break;
+	case 2:
+		button = BTN_RIGHT;
+		break;
+	case 3:
+		button = BTN_MIDDLE;
+		break;
+	default:
+		litest_abort_msg("Unexpected number of fingers (%d)", nfingers);
+	}
+
+	litest_drain_events(li);
+
+	switch (nfingers) {
+	case 3:
+		litest_touch_down(dev, 2, 60, 30);
+		_fallthrough_;
+	case 2:
+		litest_touch_down(dev, 1, 50, 30);
+		_fallthrough_;
+	case 1:
+		litest_touch_down(dev, 0, 40, 30);
+		break;
+	}
+	switch (nfingers) {
+	case 3:
+		litest_touch_up(dev, 2);
+		_fallthrough_;
+	case 2:
+		litest_touch_up(dev, 1);
+		_fallthrough_;
+	case 1:
+		litest_touch_up(dev, 0);
+		break;
+	}
+
+	litest_dispatch(li);
+	litest_touch_down(dev, 0, 50, 50);
+	litest_touch_move_to(dev, 0, 50, 50, 90, 90, 10);
+	litest_touch_up(dev, 0);
+	litest_dispatch(li);
+
+	if (nfingers == 1) {
+		struct libinput_event *ev;
+		litest_assert_button_event(li, button, LIBINPUT_BUTTON_STATE_PRESSED);
+		while (libinput_next_event_type(li) == LIBINPUT_EVENT_POINTER_MOTION) {
+			ev = libinput_get_event(li);
+			libinput_event_destroy(ev);
+		}
+		litest_assert_button_event(li, button, LIBINPUT_BUTTON_STATE_RELEASED);
+	} else {
+		litest_assert_button_event(li, button, LIBINPUT_BUTTON_STATE_PRESSED);
+		litest_assert_button_event(li, button, LIBINPUT_BUTTON_STATE_RELEASED);
+		litest_assert_only_typed_events(li, LIBINPUT_EVENT_POINTER_MOTION);
+	}
+
+	litest_assert_empty_queue(li);
+}
+END_TEST
+
+START_TEST(touchpad_multi_finger_drag_disabled_immediate)
+{
+	struct litest_device *dev = litest_current_device();
+	struct libinput *li = dev->libinput;
+	struct libinput_event *ev;
+	struct libinput_event_pointer *ptrev;
+	uint64_t press_time, release_time;
+	int nfingers = litest_test_param_get_i32(test_env->params, "fingers");
+	unsigned int button = 0;
+
+	if (nfingers > litest_slot_count(dev) || nfingers == 1)
+		return LITEST_NOT_APPLICABLE;
+
+	litest_enable_tap(dev->libinput_device);
+
+	litest_enable_tap_drag(dev->libinput_device);
+	litest_disable_multi_finger_tap_drag(dev->libinput_device);
+	litest_disable_hold_gestures(dev->libinput_device);
+
+	switch (nfingers) {
+	case 1:
+		button = BTN_LEFT;
+		break;
+	case 2:
+		button = BTN_RIGHT;
+		break;
+	case 3:
+		button = BTN_MIDDLE;
+		break;
+	default:
+		litest_abort_msg("Unexpected number of fingers (%d)", nfingers);
+	}
+
+	litest_drain_events(li);
+
+	switch (nfingers) {
+	case 3:
+		litest_touch_down(dev, 2, 60, 30);
+		_fallthrough_;
+	case 2:
+		litest_touch_down(dev, 1, 50, 30);
+		_fallthrough_;
+	case 1:
+		litest_touch_down(dev, 0, 40, 30);
+		break;
+	}
+
+	msleep(10);
+	litest_dispatch(li);
+
+	switch (nfingers) {
+	case 3:
+		litest_touch_up(dev, 2);
+		_fallthrough_;
+	case 2:
+		litest_touch_up(dev, 1);
+		_fallthrough_;
+	case 1:
+		litest_touch_up(dev, 0);
+		break;
+	}
+	litest_dispatch(li);
+
+	ev = libinput_get_event(li);
+	ptrev = litest_is_button_event(ev, button, LIBINPUT_BUTTON_STATE_PRESSED);
+	press_time = libinput_event_pointer_get_time(ptrev);
+	libinput_event_destroy(ev);
+
+	ev = libinput_get_event(li);
+	ptrev = litest_is_button_event(ev, button, LIBINPUT_BUTTON_STATE_RELEASED);
+	release_time = libinput_event_pointer_get_time(ptrev);
+	libinput_event_destroy(ev);
+
+	litest_assert_int_gt(release_time, press_time);
+}
+END_TEST
+
 START_TEST(touchpad_drag_lock_default_disabled)
 {
 	struct litest_device *dev = litest_current_device();
@@ -5767,6 +5923,9 @@ TEST_COLLECTION(touchpad_tap_drag)
 	litest_with_parameters(params, "fingers", 'i', 3, 1, 2, 3) {
 		litest_add_parametrized(touchpad_drag_disabled, LITEST_TOUCHPAD, LITEST_ANY, params);
 		litest_add_parametrized(touchpad_drag_disabled_immediate, LITEST_TOUCHPAD, LITEST_ANY, params);
+
+		litest_add_parametrized(touchpad_multi_finger_drag_disabled, LITEST_TOUCHPAD, LITEST_ANY, params);
+		litest_add_parametrized(touchpad_multi_finger_drag_disabled_immediate, LITEST_TOUCHPAD, LITEST_ANY, params);
 	}
 
 	litest_with_parameters(params, "fingers_1st", 'i', 3, 1, 2, 3,
