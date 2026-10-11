@@ -214,7 +214,7 @@ endif
 have_libwacom = get_option('libwacom')
 if have_libwacom
 	config_h.set('HAVE_LIBWACOM', 1)
-	dep_libwacom = dependency('libwacom', version : '>= 0.27')
+	dep_libwacom = dependency('libwacom', version : '>= 2.14')
 	if cc.has_header_symbol('libwacom/libwacom.h', 'WACOM_BUTTON_DIAL_MODESWITCH',
 				dependencies : dep_libwacom)
 		config_h.set('HAVE_LIBWACOM_BUTTON_DIAL_MODESWITCH', '1')

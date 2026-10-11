@@ -62,6 +62,7 @@ struct tablet_dispatch {
 	struct evdev_dispatch base;
 	struct evdev_device *device;
 	unsigned int tablet_id; /* incremental ID */
+	WacomDevice *libwacom_device;
 
 	unsigned int status;
 	unsigned char changed_axes[NCHARS(LIBINPUT_TABLET_TOOL_AXIS_MAX + 1)];

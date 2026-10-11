@@ -33,6 +33,8 @@
 
 #ifdef HAVE_LIBWACOM
 #include <libwacom/libwacom.h>
+#else
+typedef void *WacomStylus;
 #endif
 
 #include "util-bits.h"
