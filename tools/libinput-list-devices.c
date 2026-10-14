@@ -79,6 +79,18 @@ drag_default(struct libinput_device *device)
 }
 
 static const char *
+multi_finger_drag_default(struct libinput_device *device)
+{
+	if (!libinput_device_config_tap_get_finger_count(device))
+		return "n/a";
+
+	if (libinput_device_config_tap_get_default_multi_finger_drag_enabled(device))
+		return "enabled";
+
+	return "disabled";
+}
+
+static const char *
 draglock_default(struct libinput_device *device)
 {
 	if (!libinput_device_config_tap_get_finger_count(device))
@@ -511,6 +523,9 @@ print_device_notify(struct libinput_event *ev)
 
 	print_aligned("Tap-to-click", "%s", tap_default(dev));
 	print_aligned("Tap-and-drag", "%s", drag_default(dev));
+	print_aligned("Multi finger tap-and-drag ",
+		      "%s",
+		      multi_finger_drag_default(dev));
 	print_aligned("Tap button map", "%s", tap_button_map(dev));
 	print_aligned("Tap drag lock", "%s", draglock_default(dev));
 	print_aligned("Left-handed", "%s", left_handed_default(dev));
