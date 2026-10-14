@@ -3336,6 +3336,9 @@ litest_switch_action(struct litest_device *dev,
 	case LIBINPUT_SWITCH_KEYPAD_SLIDE:
 		code = SW_KEYPAD_SLIDE;
 		break;
+	case LIBINPUT_SWITCH_CAMERA_LENS_COVER:
+		code = SW_CAMERA_LENS_COVER;
+		break;
 	default:
 		litest_abort_msg("Invalid switch %d", sw);
 		break;

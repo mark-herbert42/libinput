@@ -887,6 +887,7 @@ if get_option('tests')
 		'test/litest-device-atmel-hover.c',
 		'test/litest-device-bcm5974.c',
 		'test/litest-device-calibrated-touchscreen.c',
+		'test/litest-device-camera-lens-cover-switch.c',
 		'test/litest-device-cyborg-rat-5.c',
 		'test/litest-device-dell-canvas-totem.c',
 		'test/litest-device-dell-canvas-totem-touch.c',

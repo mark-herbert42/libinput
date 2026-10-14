@@ -2064,6 +2064,11 @@ evdev_configure_device(struct evdev_device *device,
 			device->tags |= EVDEV_TAG_KEYPAD_SLIDE_SWITCH;
 		}
 
+		if (libevdev_has_event_code(evdev, EV_SW, SW_CAMERA_LENS_COVER)) {
+			device->seat_caps |= EVDEV_DEVICE_SWITCH;
+			device->tags |= EVDEV_TAG_CAMERA_LENS_COVER_SWITCH;
+		}
+
 		if (device->seat_caps & EVDEV_DEVICE_SWITCH)
 			evdev_log_info(device, "device is a switch device\n");
 	}
@@ -2747,6 +2752,9 @@ evdev_device_has_switch(struct evdev_device *device, enum libinput_switch sw)
 		break;
 	case LIBINPUT_SWITCH_KEYPAD_SLIDE:
 		code = SW_KEYPAD_SLIDE;
+		break;
+	case LIBINPUT_SWITCH_CAMERA_LENS_COVER:
+		code = SW_CAMERA_LENS_COVER;
 		break;
 	default:
 		return -1;

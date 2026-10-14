@@ -81,6 +81,7 @@ enum evdev_device_tags {
 	EVDEV_TAG_TABLET_TOUCHPAD = bit(9),
 	EVDEV_TAG_VIRTUAL = bit(10),
 	EVDEV_TAG_KEYPAD_SLIDE_SWITCH = bit(11),
+	EVDEV_TAG_CAMERA_LENS_COVER_SWITCH = bit(12),
 };
 
 enum evdev_middlebutton_state {

@@ -534,6 +534,12 @@ START_TEST(event_conversion_switch)
 	litest_switch_action(dev,
 			     LIBINPUT_SWITCH_KEYPAD_SLIDE,
 			     LIBINPUT_SWITCH_STATE_OFF);
+	litest_switch_action(dev,
+			     LIBINPUT_SWITCH_CAMERA_LENS_COVER,
+			     LIBINPUT_SWITCH_STATE_ON);
+	litest_switch_action(dev,
+			     LIBINPUT_SWITCH_CAMERA_LENS_COVER,
+			     LIBINPUT_SWITCH_STATE_OFF);
 	litest_dispatch(li);
 
 	while ((event = libinput_get_event(li))) {
@@ -906,6 +912,7 @@ TEST_COLLECTION(misc)
 	litest_add_for_device(event_conversion_tablet_pad, LITEST_WACOM_INTUOS5_PAD);
 	litest_add_for_device(event_conversion_switch, LITEST_LID_SWITCH);
 	litest_add_for_device(event_conversion_switch, LITEST_KEYPAD_SLIDE_SWITCH);
+	litest_add_for_device(event_conversion_switch, LITEST_CAMERA_LENS_COVER_SWITCH);
 
 	litest_add_deviceless(context_ref_counting);
 	litest_add_deviceless(config_status_string);

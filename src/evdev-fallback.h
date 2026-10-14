@@ -123,6 +123,13 @@ struct fallback_dispatch {
 		} sw;
 	} keypad_slide;
 
+	struct {
+		/* Switch */
+		struct {
+			int state;
+		} sw;
+	} camera_lens_cover;
+
 	/* Bitmask of pressed keys used to ignore initial release events from
 	 * the kernel. */
 	unsigned long hw_key_mask[NLONGS(KEY_CNT)];

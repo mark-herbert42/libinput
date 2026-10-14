@@ -89,6 +89,10 @@ fallback_interface_get_switch_state(struct evdev_dispatch *evdev_dispatch,
 		return dispatch->keypad_slide.sw.state ? LIBINPUT_SWITCH_STATE_ON
 						       : LIBINPUT_SWITCH_STATE_OFF;
 		break;
+	case LIBINPUT_SWITCH_CAMERA_LENS_COVER:
+		return dispatch->camera_lens_cover.sw.state ? LIBINPUT_SWITCH_STATE_ON
+							    : LIBINPUT_SWITCH_STATE_OFF;
+		break;
 	default:
 		/* Internal function only, so we can abort here */
 		abort();
@@ -850,6 +854,20 @@ fallback_process_switch(struct fallback_dispatch *dispatch,
 				     LIBINPUT_SWITCH_KEYPAD_SLIDE,
 				     state);
 		break;
+	case EVDEV_SW_CAMERA_LENS_COVER:
+		if (dispatch->camera_lens_cover.sw.state == e->value)
+			return;
+
+		dispatch->camera_lens_cover.sw.state = e->value;
+		if (e->value)
+			state = LIBINPUT_SWITCH_STATE_ON;
+		else
+			state = LIBINPUT_SWITCH_STATE_OFF;
+		switch_notify_toggle(&device->base,
+				     time,
+				     LIBINPUT_SWITCH_CAMERA_LENS_COVER,
+				     state);
+		break;
 	default:
 		break;
 	}
@@ -1327,6 +1345,13 @@ fallback_interface_sync_initial_state(struct evdev_device *device,
 				     LIBINPUT_SWITCH_KEYPAD_SLIDE,
 				     LIBINPUT_SWITCH_STATE_ON);
 	}
+
+	if (dispatch->camera_lens_cover.sw.state) {
+		switch_notify_toggle(&device->base,
+				     time,
+				     LIBINPUT_SWITCH_CAMERA_LENS_COVER,
+				     LIBINPUT_SWITCH_STATE_ON);
+	}
 }
 
 static void
@@ -1758,6 +1783,13 @@ fallback_dispatch_init_switch(struct fallback_dispatch *dispatch,
 	if (device->tags & EVDEV_TAG_KEYPAD_SLIDE_SWITCH) {
 		val = libevdev_get_event_value(device->evdev, EV_SW, SW_KEYPAD_SLIDE);
 		dispatch->keypad_slide.sw.state = val;
+	}
+
+	if (device->tags & EVDEV_TAG_CAMERA_LENS_COVER_SWITCH) {
+		val = libevdev_get_event_value(device->evdev,
+					       EV_SW,
+					       SW_CAMERA_LENS_COVER);
+		dispatch->camera_lens_cover.sw.state = val;
 	}
 
 	libinput_device_init_event_listener(&dispatch->tablet_mode.other.listener);

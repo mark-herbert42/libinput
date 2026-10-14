@@ -4,9 +4,10 @@
 Switches
 ==============================================================================
 
-libinput supports the lid, tablet-mode, and keypad slide switches. Unlike
-button events that come in press and release pairs, switches are usually
-toggled once and left at the setting for an extended period of time.
+libinput supports the lid, tablet-mode, keypad slide, and camera lens cover
+switches. Unlike button events that come in press and release pairs, switches
+are usually toggled once and left at the setting for an extended period of
+time.
 
 Only some switches are handled by libinput, see **libinput_switch** for a
 list of supported switches. Switch events are exposed to the caller, but
@@ -76,3 +77,19 @@ as **LIBINPUT_SWITCH_KEYPAD_SLIDE**. The keypad slide switch does not cause any
 other input devices to be enabled nor disabled in response, since on some
 devices the kernel event is sent while the keyboard is partially visible and
 thus usable.
+
+.. _switches_camera_lens_cover:
+
+------------------------------------------------------------------------------
+Camera lens cover switch handling
+------------------------------------------------------------------------------
+
+Where available, libinput listens to devices providing a camera lens cover
+switch. This is usually available on devices with a software controlled
+camera lens cover, as found e.g. ThinkPad X9-14 Gen 1 .
+
+The event sent by the kernel is ``EV_SW`` ``SW_CAMERA_LENS_COVER`` and is
+provided as **LIBINPUT_SWITCH_CAMERA_LENS_COVER**. When the switch is in state
+**LIBINPUT_SWITCH_STATE_ON** the lens cover is closed and the camera is not
+usable. The camera lens cover switch does not cause any other input devices
+to be enabled nor disabled in response.

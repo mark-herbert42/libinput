@@ -750,6 +750,22 @@ enum libinput_switch {
 	 * @since 1.31
 	 */
 	LIBINPUT_SWITCH_KEYPAD_SLIDE,
+
+	/**
+	 * This switch indicates whether the device's camera lens is covered
+	 * by a physical cover.
+	 *
+	 * If the switch is in state @ref LIBINPUT_SWITCH_STATE_OFF, the
+	 * camera lens cover is open and the camera is usable. If the state
+	 * is @ref LIBINPUT_SWITCH_STATE_ON, the camera lens cover is closed
+	 * and the camera is not usable.
+	 *
+	 * All devices will remain accessible regardless of the state of this
+	 * switch.
+	 *
+	 * @since 1.33
+	 */
+	LIBINPUT_SWITCH_CAMERA_LENS_COVER,
 };
 
 /**
