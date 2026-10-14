@@ -32,6 +32,12 @@
  * on small pads. */
 #define CIRCULAR_SCROLL_RING_WIDTH_MM 8.0
 
+/* The device reports the center of the finger contact. A finger on the
+ * rim of the pad is reported approximately 5mm inside the axis range.
+ * Measure the ring inward from this reachable edge, not from the axis
+ * edge. */
+#define CIRCULAR_SCROLL_EDGE_MARGIN_MM 5.0
+
 /* Near dead-centre the polar angle is meaningless: atan2 swings by π
  * across a one-pixel crossing of the origin, and small noise on dx or
  * dy produces wild angle deltas. Within this radius of the centre we
@@ -92,6 +98,7 @@ tp_circular_scroll_reset_touch(struct tp_touch *t)
 	/* NAN signals "no valid baseline angle"; the next frame in
 	 * RING state will set a fresh baseline without emitting. */
 	t->scroll.circular.prev_angle = NAN;
+	t->scroll.circular.scrolling = false;
 }
 
 void
@@ -106,9 +113,13 @@ tp_circular_scroll_init(struct tp_dispatch *tp, struct evdev_device *device)
 	tp->scroll.circular.center.y =
 		(device->abs.absinfo_y->maximum + device->abs.absinfo_y->minimum) / 2;
 
-	/* Convert the 8mm ring width into device units by asking the
-	 * evdev helper for a vector from (0,0) to (RING_WIDTH,RING_WIDTH) mm
-	 * and taking the magnitude along one axis. */
+	/* Convert the edge margin and the ring width to device units.
+	 * Use the X component of a vector from (0,0) to (mm,mm). */
+	struct phys_coords margin_mm = {
+		.x = CIRCULAR_SCROLL_EDGE_MARGIN_MM,
+		.y = CIRCULAR_SCROLL_EDGE_MARGIN_MM,
+	};
+	struct device_coords margin = evdev_device_mm_to_units(device, &margin_mm);
 	struct phys_coords ring_mm = {
 		.x = CIRCULAR_SCROLL_RING_WIDTH_MM,
 		.y = CIRCULAR_SCROLL_RING_WIDTH_MM,
@@ -120,18 +131,17 @@ tp_circular_scroll_init(struct tp_dispatch *tp, struct evdev_device *device)
 	int32_t radius_y =
 		(device->abs.absinfo_y->maximum - device->abs.absinfo_y->minimum) / 2;
 	int32_t radius = min(radius_x, radius_y);
-	int32_t inner_radius = max(radius - ring_offset.x, radius / 2);
+	/* The largest radius the device can report for a finger center. */
+	int32_t reachable_radius = max(radius - margin.x, radius / 2);
+	int32_t inner_radius = max(reachable_radius - ring_offset.x, radius / 2);
 
 	tp->scroll.circular.ring_threshold_sq = inner_radius * inner_radius;
 
-	/* Reference radius for the "virtual scroll wheel" model: the middle
-	 * of the ring zone. The scroll signal we emit is the arc length on a
-	 * circle of this radius, not the arc on the finger's actual (varying)
-	 * path. Using a fixed reference keeps scroll angle-based: same
-	 * angular rotation produces the same scroll regardless of where
-	 * within the ring the finger currently sits, preserving the
-	 * "rotate tighter near the centre to scroll faster" feel. */
-	int32_t ring_ref_radius = (radius + inner_radius) / 2;
+	/* Reference radius of the virtual scroll wheel: the middle of the
+	 * reachable ring. The scroll value is the arc length on a circle
+	 * of this radius, not on the path of the finger. Thus the same
+	 * rotation gives the same scroll at each position in the ring. */
+	int32_t ring_ref_radius = (reachable_radius + inner_radius) / 2;
 	tp->scroll.circular.ring_reference_radius = ring_ref_radius;
 
 	/* Convert the dead-zone radius to device units the same way as
@@ -181,8 +191,35 @@ tp_circular_scroll_handle_state(struct tp_dispatch *tp, usec_t time)
 			 * prevents accidental mode-flipping mid-gesture
 			 * and lets the inner disc be used as a normal
 			 * pointer area even when the finger strays
-			 * briefly into the ring. */
-			if (tp_circular_scroll_point_on_ring(tp, &t->point)) {
+			 * briefly into the ring.
+			 *
+			 * Circular scroll is a one-finger gesture. A touch
+			 * that starts while other fingers are down is part
+			 * of a multi-finger gesture. Send it to the gesture
+			 * code, also when it is on the ring. On a round pad
+			 * the outer fingers of a swipe are always on the
+			 * ring. Also release a ring touch that has not
+			 * scrolled yet. The fingers of one gesture usually
+			 * start in different frames. */
+			if (tp->nfingers_down > 1) {
+				struct tp_touch *other;
+
+				tp_for_each_touch(tp, other) {
+					if (other != t &&
+					    other->scroll.circular.state ==
+						    CIRCULAR_SCROLL_TOUCH_STATE_RING &&
+					    !other->scroll.circular.scrolling) {
+						evdev_log_debug(
+							tp->device,
+							"circular-scroll: touch %d released to multi-finger gesture\n",
+							other->index);
+						other->scroll.circular.state =
+							CIRCULAR_SCROLL_TOUCH_STATE_INNER;
+					}
+				}
+				t->scroll.circular.state =
+					CIRCULAR_SCROLL_TOUCH_STATE_INNER;
+			} else if (tp_circular_scroll_point_on_ring(tp, &t->point)) {
 				t->scroll.circular.state =
 					CIRCULAR_SCROLL_TOUCH_STATE_RING;
 				t->scroll.circular.prev_angle =
@@ -197,6 +234,17 @@ tp_circular_scroll_handle_state(struct tp_dispatch *tp, usec_t time)
 			break;
 		case TOUCH_MAYBE_END:
 		case TOUCH_END:
+			/* Send the scroll stop event. Clients use it to
+			 * end kinetic scroll and overscroll. Two-finger
+			 * and edge scroll send it too. */
+			if (t->scroll.circular.scrolling) {
+				const struct normalized_coords zero = { 0.0, 0.0 };
+				evdev_notify_axis_finger(
+					tp->device,
+					time,
+					bit(LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL),
+					&zero);
+			}
 			tp_circular_scroll_reset_touch(t);
 			break;
 		}
@@ -285,6 +333,7 @@ tp_circular_scroll_post_events(struct tp_dispatch *tp, usec_t time)
 					 time,
 					 bit(LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL),
 					 &normalized);
+		t->scroll.circular.scrolling = true;
 	}
 
 	/* Return 0: we don't own the whole frame. Pointer motion for
@@ -304,13 +353,19 @@ tp_circular_scroll_stop_events(struct tp_dispatch *tp, usec_t time)
 		return;
 
 	tp_for_each_touch(tp, t) {
-		if (t->scroll.circular.state == CIRCULAR_SCROLL_TOUCH_STATE_RING) {
-			evdev_notify_axis_finger(
-				tp->device,
-				time,
-				bit(LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL),
-				&zero);
-		}
+		/* Stop only a touch that has sent scroll events. A ring
+		 * touch that has not scrolled yet must keep its zone. The
+		 * zone is set only on TOUCH_BEGIN. A reset here makes the
+		 * touch a pointer touch for its full lifetime. This occurs
+		 * while tap-to-click holds back the first frames. Edge
+		 * scroll uses the same rule. */
+		if (!t->scroll.circular.scrolling)
+			continue;
+
+		evdev_notify_axis_finger(tp->device,
+					 time,
+					 bit(LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL),
+					 &zero);
 		tp_circular_scroll_reset_touch(t);
 	}
 }

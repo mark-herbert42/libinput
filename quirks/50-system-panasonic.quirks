@@ -8,3 +8,10 @@ MatchVendor=0x06CB
 MatchProduct=0xCDEA
 MatchDMIModalias=dmi:*svnPanasonicCorporation*:pnCFSV1*
 ModelCircularTouchpad=1
+
+[Panasonic Let's Note CF-FV1 circular trackpad]
+MatchBus=i2c
+MatchVendor=0x06CB
+MatchProduct=0xCE53
+MatchDMIModalias=dmi:*svnPanasonicCorporation*:pnCFFV1*
+ModelCircularTouchpad=1
