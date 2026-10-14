@@ -2935,10 +2935,12 @@ evdev_device_suspend(struct evdev_device *device)
 {
 	struct libinput *libinput = evdev_libinput_context(device);
 
-	evdev_notify_suspended_device(device);
-
 	if (device->dispatch->interface->suspend)
 		device->dispatch->interface->suspend(device->dispatch, device);
+
+	/* Paired devices must receive the neutral-state events before their
+	 * suspension callbacks remove the event listeners. */
+	evdev_notify_suspended_device(device);
 
 	if (device->source) {
 		libinput_remove_source(libinput, device->source);
