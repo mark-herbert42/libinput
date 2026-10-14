@@ -153,8 +153,10 @@ struct libinput_event_touch;
  * LIBINPUT_EVENT_GESTURE_SWIPE_UPDATE, @ref LIBINPUT_EVENT_GESTURE_SWIPE_END,
  * @ref LIBINPUT_EVENT_GESTURE_PINCH_BEGIN, @ref
  * LIBINPUT_EVENT_GESTURE_PINCH_UPDATE, @ref LIBINPUT_EVENT_GESTURE_PINCH_END,
- * @ref LIBINPUT_EVENT_GESTURE_HOLD_BEGIN and @ref
- * LIBINPUT_EVENT_GESTURE_HOLD_END.
+ * @ref LIBINPUT_EVENT_GESTURE_HOLD_BEGIN, @ref LIBINPUT_EVENT_GESTURE_HOLD_END,
+ * @ref LIBINPUT_EVENT_GESTURE_DEEP_CLICK_BEGIN and @ref
+ * LIBINPUT_EVENT_GESTURE_DEEP_CLICK_END.
+ *
  */
 struct libinput_event_gesture;
 
@@ -1051,6 +1053,11 @@ enum libinput_event_type {
 	 */
 	LIBINPUT_EVENT_GESTURE_HOLD_BEGIN,
 	LIBINPUT_EVENT_GESTURE_HOLD_END,
+	/**
+	 * @since 1.33
+	 */
+	LIBINPUT_EVENT_GESTURE_DEEP_CLICK_BEGIN,
+	LIBINPUT_EVENT_GESTURE_DEEP_CLICK_END,
 
 	/**
 	 * @since 1.7
@@ -2011,13 +2018,15 @@ libinput_event_gesture_get_finger_count(struct libinput_event_gesture *event);
  * Return if the gesture ended normally, or if it was cancelled.
  * For gesture events that are not of type
  * @ref LIBINPUT_EVENT_GESTURE_SWIPE_END,
- * @ref LIBINPUT_EVENT_GESTURE_PINCH_END, or
- * @ref LIBINPUT_EVENT_GESTURE_HOLD_END, this function returns 0.
+ * @ref LIBINPUT_EVENT_GESTURE_PINCH_END,
+ * @ref LIBINPUT_EVENT_GESTURE_HOLD_END, or
+ * @ref LIBINPUT_EVENT_GESTURE_DEEP_CLICK_END, this function returns 0.
  *
  * @note It is an application bug to call this function for events other than
  * @ref LIBINPUT_EVENT_GESTURE_SWIPE_END,
- * @ref LIBINPUT_EVENT_GESTURE_PINCH_END, or
- * @ref LIBINPUT_EVENT_GESTURE_HOLD_END.
+ * @ref LIBINPUT_EVENT_GESTURE_PINCH_END,
+ * @ref LIBINPUT_EVENT_GESTURE_HOLD_END, or
+ * @ref LIBINPUT_EVENT_GESTURE_DEEP_CLICK_END.
  *
  * @return 0 or 1, with 1 indicating that the gesture was cancelled.
  */
@@ -4763,6 +4772,9 @@ libinput_device_group_get_user_data(struct libinput_device_group *group);
  *    - libinput_device_config_click_set_clickfinger_button_map()
  *    - libinput_device_config_scroll_set_method()
  *    - libinput_device_config_dwt_set_enabled()
+ *    - libinput_device_config_haptics_set_config()
+ *    - libinput_device_config_haptics_get_config()
+ *    - libinput_device_config_haptics_is_available()
  * - Touchscreens:
  *    - libinput_device_config_calibration_set_matrix()
  * - Tablets:
@@ -5192,6 +5204,67 @@ enum libinput_config_3fg_drag_state {
 	 */
 	LIBINPUT_CONFIG_3FG_DRAG_ENABLED_4FG,
 };
+
+/**
+ * @ingroup config
+ *
+ * A config status to configure the thresholds and sensitivities for click and deepclick
+ * on haptic touchpads.
+ *
+ * @since 1.33
+ */
+struct libinput_config_haptics {
+	struct {
+		int trigger_threshold;
+		int release_threshold;
+		int trigger_intensity;
+		int release_intensity;
+	} click;
+
+	struct {
+		int trigger_threshold;
+		int release_threshold;
+		int trigger_intensity;
+		int release_intensity;
+	} deep_click;
+};
+
+/**
+ * @ingroup config
+ *
+ * Sets the configuration to configure the thresholds and sensitivities for click and
+ * deepclick on haptic touchpads.
+ *
+ * @see libinput_device_config_haptics_get_config
+ * @see libinput_device_config_haptics_is_available
+ */
+enum libinput_config_status
+libinput_device_config_haptics_set_config(
+	struct libinput_device *device,
+	struct libinput_config_haptics *configuration);
+
+/**
+ * @ingroup config
+ *
+ * Returns the current configuration of the haptics.
+ *
+ * @see libinput_device_config_haptics_set_config
+ * @see libinput_device_config_haptics_is_available
+ */
+struct libinput_config_haptics
+libinput_device_config_haptics_get_config(struct libinput_device *device);
+
+/**
+ * @ingroup config
+ *
+ * Returns whether or not libinput is capable of presenting the current touchpad as a
+ * haptic touchpad.
+ *
+ * @see libinput_device_config_haptics_get_config
+ * @see libinput_device_config_haptics_set_config
+ */
+int
+libinput_device_config_haptics_is_available(struct libinput_device *device);
 
 /**
  * @ingroup config

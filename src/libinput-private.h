@@ -501,6 +501,15 @@ struct libinput_device_config_gesture {
 		struct libinput_device *device);
 };
 
+struct libinput_device_config_haptics {
+	int (*is_available)(struct libinput_device *device);
+	enum libinput_config_status (*set_haptics_settings)(
+		struct libinput_device *device,
+		struct libinput_config_haptics *configuration);
+	struct libinput_config_haptics (*get_haptics_settings)(
+		struct libinput_device *device);
+};
+
 struct libinput_device_config {
 	struct libinput_device_config_tap *tap;
 	struct libinput_device_config_calibration *calibration;
@@ -517,6 +526,7 @@ struct libinput_device_config {
 	struct libinput_device_config_rotation *rotation;
 	struct libinput_device_config_gesture *gesture;
 	struct libinput_device_config_3fg_drag *drag_3fg;
+	struct libinput_device_config_haptics *haptics;
 };
 
 struct libinput_device_group {
@@ -893,6 +903,17 @@ gesture_notify_hold_end(struct libinput_device *device,
 			usec_t time,
 			int finger_count,
 			bool cancelled);
+
+void
+gesture_notify_deep_click_begin(struct libinput_device *device,
+				usec_t time,
+				int finger_count);
+
+void
+gesture_notify_deep_click_end(struct libinput_device *device,
+			      usec_t time,
+			      int finger_count,
+			      bool cancelled);
 
 void
 tablet_notify_axis(struct libinput_device *device,
