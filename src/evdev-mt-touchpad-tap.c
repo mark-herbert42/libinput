@@ -87,6 +87,9 @@ tap_state_to_str(enum tp_tap_state state)
 	CASE_RETURN_STRING(TAP_STATE_1FGTAP_DRAGGING_2);
 	CASE_RETURN_STRING(TAP_STATE_2FGTAP_DRAGGING_2);
 	CASE_RETURN_STRING(TAP_STATE_3FGTAP_DRAGGING_2);
+	CASE_RETURN_STRING(TAP_STATE_1FGTAP_DRAGGING_GESTURE);
+	CASE_RETURN_STRING(TAP_STATE_2FGTAP_DRAGGING_GESTURE);
+	CASE_RETURN_STRING(TAP_STATE_3FGTAP_DRAGGING_GESTURE);
 	CASE_RETURN_STRING(TAP_STATE_DEAD);
 	}
 	return NULL;
@@ -936,12 +939,21 @@ tp_tap_dragging_tap_handle_event(struct tp_dispatch *tp,
 
 	switch (event) {
 	case TAP_EVENT_TOUCH: {
-		tp_tap_notify(tp,
-			      time,
-			      nfingers_tapped,
-			      LIBINPUT_BUTTON_STATE_RELEASED);
+		/* A 2nd finger landing here used to be treated as proof this wasn't
+		 * a solo tap, and killed the drag outright. It no longer does: a 2nd
+		 * finger is exactly as much proof that this *isn't* a solo tap as it
+		 * is a sign a real gesture (scroll/swipe) might be starting — so hold
+		 * the drag instead and let the gesture code decide what these fingers
+		 * are doing, unsuppressed. A solo tap can still only ever be
+		 * recognized by exactly one finger, alone — that path is untouched. */
+		enum tp_tap_state dest[3] = {
+			TAP_STATE_1FGTAP_DRAGGING_GESTURE,
+			TAP_STATE_2FGTAP_DRAGGING_GESTURE,
+			TAP_STATE_3FGTAP_DRAGGING_GESTURE,
+		};
+		assert(nfingers_tapped >= 1 && nfingers_tapped <= 3);
+		tp->tap.state = dest[nfingers_tapped - 1];
 		tp_tap_clear_timer(tp);
-		tp_tap_move_to_dead(tp, t);
 		break;
 	}
 	case TAP_EVENT_RELEASE:
@@ -1005,13 +1017,23 @@ tp_tap_dragging2_handle_event(struct tp_dispatch *tp,
 		tp->tap.state = dest[nfingers_tapped - 1];
 		break;
 	}
-	case TAP_EVENT_TOUCH:
-		tp->tap.state = TAP_STATE_DEAD;
-		tp_tap_notify(tp,
-			      time,
-			      nfingers_tapped,
-			      LIBINPUT_BUTTON_STATE_RELEASED);
+	case TAP_EVENT_TOUCH: {
+		/* Same rationale as tp_tap_dragging_tap_handle_event()'s
+		 * TAP_EVENT_TOUCH case above: an extra finger landing while an
+		 * extra finger is already down mid-drag used to kill the drag
+		 * outright. 2+ extra fingers here is exactly the shape of a real
+		 * gesture (2-finger scroll, 3/4-finger swipe), not a tap attempt,
+		 * so hold the drag and let the gesture code classify these fingers
+		 * unsuppressed instead. */
+		enum tp_tap_state dest[3] = {
+			TAP_STATE_1FGTAP_DRAGGING_GESTURE,
+			TAP_STATE_2FGTAP_DRAGGING_GESTURE,
+			TAP_STATE_3FGTAP_DRAGGING_GESTURE,
+		};
+		assert(nfingers_tapped >= 1 && nfingers_tapped <= 3);
+		tp->tap.state = dest[nfingers_tapped - 1];
 		break;
+	}
 	case TAP_EVENT_MOTION:
 	case TAP_EVENT_TIMEOUT:
 		/* noop */
@@ -1035,6 +1057,55 @@ tp_tap_dragging2_handle_event(struct tp_dispatch *tp,
 		tp->tap.state = dest[nfingers_tapped - 1];
 		break;
 	}
+	case TAP_EVENT_PALM_UP:
+		break;
+	}
+}
+
+/* Held while 2+ fingers have been down during an active tap-and-drag, once we
+ * know for certain this episode is not a solo tap attempt (a solo
+ * end-of-drag tap is definitionally one finger, alone). Gestures run fully
+ * unsuppressed while here (see the matching change in
+ * tp_gesture_post_events() in evdev-mt-touchpad-gestures.c). We just wait for
+ * every finger to lift before falling back to *_DRAGGING_WAIT, which re-arms
+ * the solo-tap-to-end-drag detector for next time. */
+static void
+tp_tap_dragging_gesture_handle_event(struct tp_dispatch *tp,
+				     struct tp_touch *t,
+				     enum tap_event event,
+				     usec_t time,
+				     int nfingers_tapped)
+{
+	switch (event) {
+	case TAP_EVENT_TOUCH:
+		/* more fingers joining an already-not-a-tap episode changes nothing */
+		break;
+	case TAP_EVENT_RELEASE:
+	case TAP_EVENT_PALM:
+	case TAP_EVENT_THUMB:
+		/* tp->tap.nfingers_down is already decremented by the caller for
+		 * all three of these events before this handler runs */
+		if (tp->tap.nfingers_down == 0) {
+			enum tp_tap_state dest[3] = {
+				TAP_STATE_1FGTAP_DRAGGING_WAIT,
+				TAP_STATE_2FGTAP_DRAGGING_WAIT,
+				TAP_STATE_3FGTAP_DRAGGING_WAIT,
+			};
+			assert(nfingers_tapped >= 1 && nfingers_tapped <= 3);
+			tp->tap.state = dest[nfingers_tapped - 1];
+		}
+		break;
+	case TAP_EVENT_MOTION:
+	case TAP_EVENT_TIMEOUT:
+		/* noop — the gesture code owns motion interpretation entirely here */
+		break;
+	case TAP_EVENT_BUTTON:
+		tp->tap.state = TAP_STATE_DEAD;
+		tp_tap_notify(tp,
+			      time,
+			      nfingers_tapped,
+			      LIBINPUT_BUTTON_STATE_RELEASED);
+		break;
 	case TAP_EVENT_PALM_UP:
 		break;
 	}
@@ -1161,6 +1232,15 @@ tp_tap_handle_event(struct tp_dispatch *tp,
 		break;
 	case TAP_STATE_3FGTAP_DRAGGING_2:
 		tp_tap_dragging2_handle_event(tp, t, event, time, 3);
+		break;
+	case TAP_STATE_1FGTAP_DRAGGING_GESTURE:
+		tp_tap_dragging_gesture_handle_event(tp, t, event, time, 1);
+		break;
+	case TAP_STATE_2FGTAP_DRAGGING_GESTURE:
+		tp_tap_dragging_gesture_handle_event(tp, t, event, time, 2);
+		break;
+	case TAP_STATE_3FGTAP_DRAGGING_GESTURE:
+		tp_tap_dragging_gesture_handle_event(tp, t, event, time, 3);
 		break;
 	case TAP_STATE_DEAD:
 		tp_tap_dead_handle_event(tp, t, event, time);
