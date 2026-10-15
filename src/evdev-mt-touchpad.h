@@ -131,6 +131,14 @@ enum tp_tap_state {
 	TAP_STATE_1FGTAP_DRAGGING_2,
 	TAP_STATE_2FGTAP_DRAGGING_2,
 	TAP_STATE_3FGTAP_DRAGGING_2,
+	/* Held while 2+ fingers are down during an active tap-and-drag,
+	once we know this isn't a solo tap attempt. Gestures run unsuppressed here;
+    we just wait for all fingers to lift before re-arming the solo-tap-to-end-drag
+    detector. See tp_tap_dragging_gesture_handle_event() in
+    evdev-mt-touchpad-tap.c. */
+	TAP_STATE_1FGTAP_DRAGGING_GESTURE,
+	TAP_STATE_2FGTAP_DRAGGING_GESTURE,
+	TAP_STATE_3FGTAP_DRAGGING_GESTURE,
 	TAP_STATE_DEAD, /**< finger count exceeded */
 };
 

@@ -2045,12 +2045,23 @@ tp_gesture_post_events(struct tp_dispatch *tp, usec_t time, bool ignore_motion)
 	if (tp->gesture.finger_count == 0)
 		return;
 
-	/* When tap-and-dragging, force 1fg mode. On clickpads, if the
-	 * physical button is down, don't allow gestures unless the button
-	 * is held down by a *thumb*, specifically.
+	/* When tap-and-dragging with only the one real dragging finger down, force
+	 * 1fg mode so its motion moves the cursor rather than getting swept into
+	 * gesture classification. Narrowed from "any drag state" to "exactly one
+	 * finger down while dragging" — once a 2nd+ finger joins, tap.c's
+	 * TAP_STATE_*FGTAP_DRAGGING_GESTURE takes over (tp_tap_dragging()
+	 * deliberately returns false there) and this classifies normally, using
+	 * all current touches, same as it would with no drag active at all.
+	 * tp->gesture.finger_count here is this frame's real count, computed in
+	 * tp_gesture_handle_state() before this function runs — not yet clamped
+	 * by the block below. On clickpads, if the physical button is down,
+	 * don't allow gestures unless the button is held down by a *thumb*,
+	 * specifically (this half is unconditional, not narrowed — unrelated to
+	 * dragging).
 	 */
-	if (tp_tap_dragging(tp) || (tp->buttons.is_clickpad && tp->buttons.state &&
-				    tp->thumb.state == THUMB_STATE_FINGER)) {
+	if ((tp_tap_dragging(tp) && tp->gesture.finger_count <= 1) ||
+	    (tp->buttons.is_clickpad && tp->buttons.state &&
+	     tp->thumb.state == THUMB_STATE_FINGER)) {
 		if (tp->gesture.state != GESTURE_STATE_POINTER_MOTION) {
 			tp_gesture_cancel(tp, time);
 			tp_gesture_handle_event(tp,
